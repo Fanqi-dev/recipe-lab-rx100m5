@@ -117,8 +117,6 @@ final class TextZhHans {
         { "status_picked_many", "已选用——写入 %1$d 项" },
         { "status_not_picked", "未选用" },
         { "status_not_reset", "未重置" },
-        { "status_quality_pick", "画质：%1$s——按 ENTER 选用" },
-        { "status_quality_live", "画质：%1$s（定位槽位前仅实时预览）" },
         { "status_recipe_previewed", "已预览 %1$s——按 ENTER 选用" },
         { "status_snapshot_taken", "已保存 %1$d 项设置的快照。更改一项菜单设置，重新打开应用，再运行“设置差异”。" },
         { "status_diff_changed", "%1$d 项有变化  %2$s" },

@@ -1,4 +1,4 @@
-name: create-release
+name: upstream-create-release-disabled
 
 # The whole release runbook as one button. There is one branch: semantic-release reads the
 # commits on `main`, decides the version, writes the manifest via tools/bump-version.sh,

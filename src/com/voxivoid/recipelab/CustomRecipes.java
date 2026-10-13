@@ -207,6 +207,10 @@ final class CustomRecipes {
     static Loaded load(File dir) {
         List<Entry> ok = new ArrayList<Entry>();
         List<String> skipped = new ArrayList<String>();
+        if (dir != null && dir.isDirectory()) {
+            try { SafeRecipeFiles.recover(dir); }
+            catch (IOException e) { skipped.add("RECOVERY: " + e.getMessage()); return new Loaded(ok, skipped); }
+        }
         File[] files = dir == null ? null : dir.listFiles();
         if (files == null) return new Loaded(ok, skipped);
         Arrays.sort(files, new Comparator<File>() { public int compare(File a, File b) { return a.getName().compareToIgnoreCase(b.getName()); } });
@@ -254,27 +258,14 @@ final class CustomRecipes {
      * the file system can; the card's cannot, and a sync it refuses is not a failed save.
      */
     static Entry save(File dir, Recipes.Recipe r, String madeOn, String oldFile) throws IOException {
+        if (dir == null) throw new IOException("No memory card");
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
+        SafeRecipeFiles.recover(dir);
         List<String> taken = new ArrayList<String>();
         String[] names = dir.list();
         if (names != null) for (String n : names) if (oldFile == null || !n.equalsIgnoreCase(oldFile)) taken.add(n);
         String file = fileName(r.name, taken);
-        File tmp = new File(dir, TMP), target = new File(dir, file);
-        if (tmp.exists()) remove(tmp);                                  // left by a save the camera was switched off in
-        FileOutputStream out = new FileOutputStream(tmp);
-        try {
-            out.write(RecipeFormats.write(r, madeOn).getBytes(UTF8));
-            out.flush();
-            try { out.getFD().sync(); } catch (IOException noSync) {}   // Sony's FUSE layer has no fsync
-        } catch (IOException e) {
-            out.close(); tmp.delete(); throw e;
-        }
-        out.close();
-        boolean same = oldFile != null && oldFile.equalsIgnoreCase(file);   // an edit, or a rename that only changes case
-        if (same) remove(new File(dir, oldFile));                       // on FAT it is the target itself
-        if (target.exists()) remove(target);
-        if (!tmp.renameTo(target)) { tmp.delete(); throw new IOException("cannot write " + target); }
-        if (oldFile != null && !same) new File(dir, oldFile).delete();
+        SafeRecipeFiles.save(dir, file, oldFile, RecipeFormats.write(r, madeOn).getBytes(UTF8));
         return new Entry(r, file);
     }
 

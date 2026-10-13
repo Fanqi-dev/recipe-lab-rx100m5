@@ -9,3 +9,9 @@ debug.keystore
 jni/platform/errno.h.updater_only
 .idea/
 *.iml
+out-safe/
+verification/
+build-safe.log
+*.jks
+*.p12
+*.pem

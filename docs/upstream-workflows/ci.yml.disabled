@@ -1,4 +1,4 @@
-name: ci
+name: upstream-ci-disabled
 
 # Every push to a work branch is checked, so a branch is known-good before a PR exists.
 #

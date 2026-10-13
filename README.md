@@ -1,3 +1,44 @@
+# Recipe Lab RX100M5 — 修复测试版
+
+本仓库是 [voxivoid/recipe-lab-sony-pmca](https://github.com/voxivoid/recipe-lab-sony-pmca) 的非官方派生版，基于官方 **v1.6.2 / c5a345d80177b45f3ee6fc93a5841ad771ea60bb**。只针对 **DSC-RX100M5**，不是 RX100M5A，也不是通用索尼版。
+
+**尚未经过相机实机验收。333 项主机端测试通过不等于实机安全保证。请把 Release 当作预发布测试版，不是官方稳定版。**
+
+下载：[Releases](https://github.com/Fanqi-dev/recipe-lab-rx100m5/releases) · 修改说明：[CHANGELOG-RX100M5.md](CHANGELOG-RX100M5.md) · 安装与恢复：[RX100M5-安装和修改说明.txt](RX100M5-安装和修改说明.txt) · 验证范围：[VERIFICATION.md](VERIFICATION.md)
+
+## 主要改动
+
+- 读取必须完整有效；未知型号、异常参数、初始化/预览失败时停止写入。
+- 相机设置写入前持久保存原值；逐项读回验证，失败回退，未完成事务下次启动尝试恢复。
+- 保留索尼原生 RAW/JPEG 与 JPEG 压缩画质；RAW 模式拒绝 JPEG-only 效果，不自动改成 JPEG。
+- 自定义配方保存使用临时文件、恢复日志和备份，避免直接截断原文件。
+- 中央键进入确认，默认取消；显示画质保留、EV 变化和 PP 关闭提示。保留后拨轮、方向键、Fn、MENU 习惯，不重定义镜头环或变焦杆。
+- 退出预览正确恢复预设白平衡；独立包名可与官方版并存，但共用机身设置及卡上的 RECIPES。
+
+## 安装及风险
+
+PMCA 的 **Install app → Select an apk → Open apk** 选择 Release 中的 APK。不要选择在线 app list 下载本派生版。应用列表名称为 `Recipe Lab RX100M5`，包名 `com.voxivoid.recipelab.rx100m5safe`。
+
+先备份卡片及记录原生相机设置。应用确认后退出，再用原生相机界面拍摄。出现 `Recovery pending` 时不要删除应用数据或恢复日志；先退出重开，仍失败则停止使用并备份 RECIPES。
+
+事务与回读减少部分失败风险，**不保证相机固件行为或掉电物理原子性**。相机端 UI、控制环事件、镜头、真实照片和视频均未实测。已确认配方不会因为退出应用而自动撤销，Factory 也不是个人设置备份。
+
+## 构建与测试
+
+跨平台主机测试：JDK 17+ 和 Bash，执行 `./tools/test.sh`。JUnit 下载有固定 SHA-256 校验；可用 `JUNIT_JAR` 指向已下载的 launcher。新增保护逻辑也包含在此入口中。
+
+本次发布 APK 使用 `build-safe.ps1`，要求仓库上一级准备 `tools/zulu21/zulu21.52.203-ca-jdk21.0.12.1-win_x64/bin`、`tools/build-tools30/android-11`、`tools/platform28/android-9/android.jar`、`tools/r8-8.3.37.jar`，以及从官方 v1.6.2 APK 解出的 `librecipelab.so`；`test-safe.ps1` 另需要 `tools/junit.jar`。这些是本地构建布局，不含自动依赖下载。
+
+沿用 ARM JNI 库，SHA-256 为 `59606b2d7a58438953fae314d0082ce3ff43c0ed37f90a1838b341ebbab96f4d`。不要用原版 `build.sh`/`build.cmd` 或已停用的上游发布工作流代替本版构建流程；它们保留仅供追溯。签名私钥不公开，自行构建产生不同签名，不能直接覆盖本 Release。构建结果不承诺逐字节可重复。
+
+## 来源与许可
+
+原作者 André Domingues / voxivoid，源码 MIT 许可，原始 [LICENSE](LICENSE) 保留。字体许可见 `assets/fonts/OFL.txt`。OpenMemories 平台来源及子模块锁定信息见 `.gitmodules`、`jni/platform` 和 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。本版没有改写 JNI、刷写固件或新增网络权限；`safe` 只是分支/产物命名，不是安全认证。
+
+---
+
+以下保留上游 README；其中原版下载、机型兼容及构建说明不代表本派生版。
+
 <p align="center">
   <img src="dist/icon-512.png" width="96" alt="Recipe Lab icon">
 </p>
@@ -407,3 +448,4 @@ reference frames on his site were the inspiration and the benchmark for many of 
 Ilford, Cinema…). The values in this app are re-derived for what the A6000 can store and are not his recipes.
 
 License: MIT (this repository). OpenMemories-Platform: MIT, © 2017 ma1co.
+

@@ -137,8 +137,6 @@ final class TextEn {
         { "status_picked_many", "Picked — %1$d values written" },
         { "status_not_picked", "Not picked" },
         { "status_not_reset", "Not reset" },
-        { "status_quality_pick", "Quality: %1$s  — ENTER to pick" },
-        { "status_quality_live", "Quality: %1$s  (live view only until the slot is known)" },
         { "status_recipe_previewed", "%1$s previewed — ENTER to pick" },
         { "status_snapshot_taken", "Snapshot of %1$d settings taken. Change a menu setting, reopen, run Settings diff." },
         { "status_diff_changed", "%1$d changed  %2$s" },

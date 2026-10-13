@@ -117,8 +117,6 @@ final class TextZhHant {
         { "status_picked_many", "已選用——寫入 %1$d 項" },
         { "status_not_picked", "未選用" },
         { "status_not_reset", "未重設" },
-        { "status_quality_pick", "畫質：%1$s——按 ENTER 選用" },
-        { "status_quality_live", "畫質：%1$s（定位槽位前僅即時預覽）" },
         { "status_recipe_previewed", "已預覽 %1$s——按 ENTER 選用" },
         { "status_snapshot_taken", "已儲存 %1$d 項設定的快照。變更一項選單設定，重新開啟應用程式，再執行「設定差異」。" },
         { "status_diff_changed", "%1$d 項有變化  %2$s" },

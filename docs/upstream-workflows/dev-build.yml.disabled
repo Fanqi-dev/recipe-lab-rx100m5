@@ -1,4 +1,4 @@
-name: dev-build
+name: upstream-dev-build-disabled
 
 on:
   push:

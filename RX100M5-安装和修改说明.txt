@@ -1,0 +1,89 @@
+Recipe Lab RX100M5 修复测试版
+版本：1.6.2-rx100m5.1（基于官方 v1.6.2）
+日期：2026-10-14
+
+安装文件
+RecipeLab-RX100M5-safe-1.6.2.1.apk
+SHA-256: e20e17a0af63e921c8d0a23b1e891348f23884af0bc8d46f37cb7ae6aba8d653
+包名：com.voxivoid.recipelab.rx100m5safe
+应用列表显示：Recipe Lab RX100M5
+这是本地修改、独立签名的测试版，不是官方发布版，也未经过 RX100M5 实机验收。
+
+如何安装
+1. 用之前可以识别 RX100M5 的 PMCA 和 USB 模式连接。电池充足、插有存储卡。
+2. PMCA -> Install app -> Select an apk -> Open apk，选择本 APK。
+3. 点击 Install selected app，等待电脑出现 Task completed successfully。
+4. 断开 USB，关机开机，从相机 Application List 打开 Recipe Lab RX100M5。
+独立包名允许与官方版并存，不必先卸载官方版。但两者共用相机色彩设置和卡上 RECIPES，
+测试期间只操作其中一个版本。没有在你的相机上自动安装、刷固件或改驱动。
+
+按相机习惯操作
+后拨轮/方向键选择、预览配方，中央键进入应用确认。
+确认窗列出配方、画质保留（QUALITY: KEEP）、曝光补偿变化和 PP 是否关闭。
+默认高亮取消：左右键选择接受/取消，中央键执行；MENU 取消当前窗口。
+应用内部原有 Fn 品牌列表、上下/左右调整参数、长按中央键收藏保留。
+MENU 返回/退出、长按 MENU 进入应用菜单；不重新定义相机镜头控制环或变焦杆。
+确认成功后退出应用，正常拍摄使用索尼原生界面、快门、模式拨盘、变焦和对焦操作。
+本版不是对索尼整个拍摄界面的重写。
+
+画质：交还原生菜单
+RX100M5 有 Extra Fine JPEG，不能按 A6000 的档位猜测压缩编码。
+本版预览和配方写入均不改变 storage-fmt、jpeg-quality 或对应永久槽位。
+QUALITY 芯片显示 KEEP（保留）；尝试更改会提示在相机原生 MENU 中设置，然后重新打开本应用。
+创意风格类配方可用于 RAW/RAW+JPEG，但色彩不会烘焙到 RAW 原始传感器数据中。
+Picture Effect/JPEG-only 配方在 RAW/RAW+JPEG 时禁止预览/应用；需要在原生菜单手动选 JPEG。
+批量样片功能也要求原生 JPEG 设置，且不会自动把超精细改成精细。
+参考索尼原厂说明：
+https://helpguide.sony.net/dsc/1630/v1/en/contents/TP0000823211.html
+https://helpguide.sony.net/dsc/1630/v1/es/contents/TP0000820946.html
+https://helpguide.sony.net/dsc/1630/v1/en/contents/TP0000818591.html
+
+修复内容
+1. 只允许精确识别为 DSC-RX100M5 的机身；M5A、其他机型或型号未知会停止。
+2. 完整读取参数并验证长度/可表示范围后，才一次性更新内存状态；失败不使用半套参数。
+3. 相机初始化、预览或设置读取失败时，不接受应用写入；故障状态下 MENU 退出。
+4. 写入前读取所有待修改槽位原值，验证长度和属性；未知/只读项直接拒绝，不解除保护。
+5. 原值写入应用私有目录 settings.txn，SHA-256 校验并 fsync 成功后，才修改相机。
+6. 逐项读回与同步后再读回；写入失败回退原值并验证。回退失败保留日志、停止后续写入。
+7. 下次启动发现完整有效日志时，尝试恢复原值；损坏日志或无法恢复时停止，不猜测。
+8. 覆盖自定义配方采用 SAVING.TMP + SAVE.JRN + SAVING.BAK，验证新文件后才清理备份。
+9. 自定义保存失败/中断后尝试恢复；日志损坏或文件冲突时保留现场并停止保存。
+10. 退出预览恢复最后一次已验证的色彩参数；预设日光/阴天等白平衡不会误恢复成 AUTO。
+
+遇到错误时
+Not applied; original settings restored：本次未应用，原值已通过读回验证恢复。
+STOP / Recovery pending：停止操作，先退出再重新打开本应用，让它尝试恢复。
+如再次失败，不要删除应用数据、卸载本版或手工删除日志；这些文件可能包含回退原值。
+RECOVERY / SAVING.BAK 等卡片错误：先复制备份整个 RECIPES 目录，不要格式化卡。
+因未知属性/长度而拒绝时，不提供“强制写入”按钮；需根据实机日志定位，不直接放宽检查。
+
+验证范围
+333 项主机端 Java 测试全部通过：原项目测试 + 回滚、失败读回、恢复日志损坏、
+中断恢复、原文件保存失败、RAW/JPEG 保留、预设白平衡和默认取消等回归测试。
+新增中断测试是 Java 故障注入，不是真相机掉电测试。
+编译目标 minSdk/targetSdk 10，ARM JNI 库复用官方发布文件，字节完全相同。
+官方 librecipelab.so SHA-256：59606b2d7a58438953fae314d0082ce3ff43c0ed37f90a1838b341ebbab96f4d。
+apksigner --min-sdk-version 10 验证通过；旧相机需要的 v1 签名通过；zipalign 校验通过。
+最终 APK 再经 REA/JADX 解析，检查清单、读取/写入保护逻辑；完整 Java 导出无报告反编译错误。
+测试记录、REA Evidence、反编译结果仅保存在本机；公开仓库提供去除个人路径的 VERIFICATION.md。
+这些检查不能证明 Sony JNI/固件的行为，也不能保证存储卡或闪存掉电时的物理原子性。
+没有实机验证镜头、按键/控制环事件、画面布局或每一种配方的照片/视频表现。
+因此交付为“修复测试版”，不能声称绝对不会出问题或已是实机稳定版。
+
+配方与撤销
+77 个配方名、73 组独立参数的重复别名保留，不编造不同品牌算法。
+应用确认会改动色彩设置，并可能按配方改变曝光补偿和关闭 PP，确认窗会列出。
+退出应用不会撤销已确认的配方；Factory 是一组标准参数，不是你的个人初始设置备份。
+回退日志仅用于尚未完成的写入，不是长期用户设置备份。
+第一次建议 P/A/S/M 模式，选一个内置配方确认，退出拍摄，再关机重启核对菜单及照片。
+MR/记忆调用档可能覆盖色彩设置，这是原生模式行为，本版不会改写 MR 槽位。
+
+构建与授权
+源码保留于 rx100m5-safe；独立源码 ZIP 不含签名私钥和下载的大型工具。
+build-safe.ps1 使用上一级 tools 内的 JDK 21、Android API 28、build-tools 30.0.3、R8 8.3.37，
+并复用上一级 librecipelab.so；test-safe.ps1 运行纯 Java 测试。
+实际签名私钥 rx100m5-local.keystore 仅保留在本机源码目录，口令为 android，用于本地测试构建。
+不要丢失它，否则后续相同包名不同签名的 APK 不能直接覆盖安装。该口令不是任何账户凭据。
+原项目作者 voxivoid，原始源码 https://github.com/voxivoid/recipe-lab-sony-pmca ，MIT 许可。
+公开派生仓库：https://github.com/Fanqi-dev/recipe-lab-rx100m5
+本版没有自动更新服务、网络上传或新增网络权限。

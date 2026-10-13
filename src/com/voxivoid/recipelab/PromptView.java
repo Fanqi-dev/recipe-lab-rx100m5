@@ -73,7 +73,9 @@ public class PromptView extends View {
     private static void wrap(String text, Paint p, float width, List<String> out) {
         out.clear();
         String line = "";
-        for (String word : text.split(" ")) {
+        for (String paragraph : text.split("\n", -1)) {
+        line = "";
+        for (String word : paragraph.split(" ")) {
             if (word.isEmpty()) continue;
             String next = line.isEmpty() ? word : line + " " + word;
             if (p.measureText(next) <= width) { line = next; continue; }
@@ -85,6 +87,7 @@ public class PromptView extends View {
             line = word;
         }
         if (!line.isEmpty() || out.isEmpty()) out.add(line);
+        }
     }
 
     @Override

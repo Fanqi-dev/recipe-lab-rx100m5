@@ -126,6 +126,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private final int[] cur = new int[N], edit = new int[N];
     private boolean previewOk = false;
     private String previewErr = "";
+    private boolean settingsReady = false;
+    private String safetyError = "Settings not loaded";
+    private SafeSettings safeSettings;
+    private String originalWhiteBalance;
+    private Map<String, String> verifiedPreview;
+
+    private String cameraModel() { return KeyProbe.prop("model.name"); }
+    private void safetyStop(String message) {
+        settingsReady = false; safetyError = message;
+        showToast(Lang.t("status_read_failed", message), 0);
+    }
 
     @Override
     protected void onCreate(Bundle b) {
@@ -212,7 +223,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     protected void onResume() {
         super.onResume();
+        settingsReady = false;
+        safeSettings = new SafeSettings(new SafeSettings.Store() {
+            public byte[] read(int id) throws Exception { return NativeBackup.read(id); }
+            public int attr(int id) throws Exception { return NativeBackup.attr(id); }
+            public void write(int id, byte[] value) throws Exception { NativeBackup.write(id, value); }
+            public void sync() { NativeBackup.sync(); }
+        }, new File(getFilesDir(), "settings.txn"));
+        try { safeSettings.recover(cameraModel()); }
+        catch (Throwable t) { safetyStop(String.valueOf(t.getMessage())); render(); return; }
         load();
+        if (!settingsReady) { render(); return; }
         reloadCustoms();                                         // the card may have been edited over USB, or swapped
         int last = library.indexOfCustom(prefs.getString("customRecipe", null));
         if (last >= 0) recipe = last;
@@ -222,9 +243,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             cameraEx = open.invoke(null, 0, null);
             camera = (Camera) cx.getMethod("getNormalCamera").invoke(cameraEx);
             origFlat = camera.getParameters().flatten();
+            originalWhiteBalance = camera.getParameters().get("whitebalance");
+            verifiedPreview = previewValues(cur);
             holder.addCallback(this);
             previewOk = true;
-        } catch (Throwable t) { previewOk = false; previewErr = String.valueOf(t); }
+        } catch (Throwable t) { previewOk = false; previewErr = String.valueOf(t); safetyStop("Camera initialization failed: " + previewErr); render(); return; }
         showRecipe();                                            // with the edits last applied, when the camera still holds them
         applyPreview(); render();
         if (!prefs.getBoolean("keysNoticeSeen", false)) {               // the keys moved in this build (issue #18): say so once
@@ -247,7 +270,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         holder.removeCallback(this);
         // leave the live parameters equal to what is STORED (not to the launch snapshot): the camera writes some live
         // values (exposure bias, WB fine-tune) straight back into the settings store, which would undo a fresh store
-        try { if (camera != null) { load(); System.arraycopy(cur, 0, edit, 0, N); applyPreview(); } } catch (Throwable t) {}
+        try {
+            if (camera != null && verifiedPreview != null) {
+                // Restore the last verified look even if a later read or rollback failed.
+                Camera.Parameters p = camera.getParameters();
+                for (Map.Entry<String, String> e : verifiedPreview.entrySet()) p.set(e.getKey(), e.getValue());
+                camera.setParameters(p);
+            }
+        } catch (Throwable t) {}
         try { if (camera != null) camera.stopPreview(); } catch (Throwable t) {}
         try { if (cameraEx != null) cameraEx.getClass().getMethod("release").invoke(cameraEx); } catch (Throwable t) {}
         cameraEx = null; camera = null;
@@ -262,17 +292,32 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     // ------------------------------------------------------------ stored settings
     /** a slot's byte as an unsigned index */
-    private int rdu(int id) throws NativeException { return NativeBackup.readByte(id) & 0xff; }
+    private int rdu(int id) throws NativeException {
+        byte[] bytes = NativeBackup.read(id);
+        if (bytes.length != 1) throw new IllegalStateException("Unsupported slot " + Integer.toHexString(id));
+        return bytes[0] & 0xff;
+    }
 
     private void load() {
+        settingsReady = false;
+        int[] next = cur.clone();
         try {
+            SafeSettings.requireModel(cameraModel());
             for (int i = 1; i < N; i++) {
                 int id = ROW_ID[i];
-                if (id == SUB_SLOT) { int sid = Recipes.subId(cur[R_PE]); cur[i] = edit[i] = sid == 0 ? 0 : rdu(sid); continue; }
-                if (id == QUALITY_SLOTS) { cur[i] = edit[i] = readQuality(); continue; }
-                cur[i] = edit[i] = Params.fromStore(id, NativeBackup.readByte(id));
+                if (id == SUB_SLOT) { int sid = Recipes.subId(next[R_PE]); next[i] = sid == 0 ? 0 : rdu(sid); }
+                else if (id == QUALITY_SLOTS) next[i] = readQuality();
+                else {
+                    byte[] bytes = NativeBackup.read(id);
+                    if (bytes.length != 1) throw new java.io.IOException("Unsupported slot " + Integer.toHexString(id));
+                    next[i] = Params.fromStore(id, bytes[0]);
+                }
+                if (!(i == R_KELVIN && next[R_WBMODE] != WB_KELVIN)
+                        && (next[i] < ROW_MIN[i] || next[i] > ROW_MAX[i])) throw new java.io.IOException("Unsupported value: " + ROW_NAME[i]);
             }
-        } catch (Throwable t) { showToast(Lang.t("status_read_failed", String.valueOf(t.getMessage())), 0); }
+            System.arraycopy(next, 0, cur, 0, N); System.arraycopy(next, 0, edit, 0, N);
+            settingsReady = true; safetyError = "";
+        } catch (Throwable t) { safetyStop(String.valueOf(t.getMessage())); }
     }
 
     private void stageRecipe() {
@@ -286,20 +331,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         try {
             int q = Params.qualityFromStore(rdu(ID_QFMT), rdu(ID_QJPG));
             if (q >= 0) return q;
-            if (camera != null) {
-                Camera.Parameters p = camera.getParameters();
-                return Params.qualityFromRuntime(p.get("storage-fmt"), p.get("jpeg-quality"));
-            }
-        } catch (Throwable t) {}
-        return Q_FINE;
+        } catch (Throwable t) { throw new IllegalStateException("Cannot read image quality", t); }
+        throw new IllegalStateException("Unsupported image quality");
     }
 
     /** the Factory recipe's quality: the camera's current one until the user changes it in the app, then remembered */
     private int baseQuality() { int b = prefs.getInt("baseQuality", -1); return b >= 0 && b < 4 ? b : cur[R_QUAL]; }
-    private int recipeQuality(Recipes.Recipe r) { return Params.recipeQuality(r, baseQuality()); }
+    private int recipeQuality(Recipes.Recipe r) { return cur[R_QUAL]; }
     /** user changed quality on the current recipe: CS recipes and JPEG choices on PE recipes redefine the Factory quality */
     private void qualityChanged() {
-        if (Params.redefinesBaseQuality(library.get(recipe), edit[R_QUAL])) prefs.edit().putInt("baseQuality", edit[R_QUAL]).commit();
+        // Preview only: a cancelled quality edit must not change the preference for later recipes.
     }
     private boolean qualityPersistent() { return ID_QFMT != 0; }
 
@@ -324,28 +365,32 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void writeAll(boolean confirmed) {
-        if (!confirmed && qualityChanges()) { openPrompt(P_QUALITY, 0); return; }
+        if (!settingsReady || safeSettings == null) { showToast("STOP: " + safetyError, 0); return; }
+        if (edit[R_QUAL] != cur[R_QUAL]) { showToast("Set Quality in camera MENU; restart this app", 0); return; }
+        if (edit[R_PE] != 0 && cur[R_QUAL] <= Q_RAWJPG) { showToast("JPEG-only effect. Set JPEG in camera MENU; restart this app", 0); return; }
+        if (camera == null || !previewOk) { showToast("Preview unavailable; not applied. " + previewErr, 0); return; }
         if (!dirty()) { showToast(Lang.t("status_already_picked"), 2500); return; }
+        if (!confirmed) { openPrompt(P_QUALITY, Rx100M5Policy.CONFIRM_DEFAULT); return; }
         int storedSub = storedSub();
         int n = Params.dirtyRows(cur, edit, storedSub);
         List<Params.Write> ws = Params.writes(cur, edit, storedSub);
         List<Integer> locked = Params.lockedFrom(ws, attrsOf(ws));   // the slots backup protection would refuse (issue #19)
         if (!locked.isEmpty()) { showToast(Params.lockedMessage(locked), 0); return; }   // nothing written, so nothing half-applied
 
-        String msg = null;
-        int written = 0;
-        for (Params.Write w : ws) {
-            try { NativeBackup.writeByte(w.id, w.value); written++; }
-            catch (Throwable t) { msg = Params.writeFailedMessage(w.id, String.valueOf(t.getMessage()), written); break; }
+        int[] wanted = edit.clone();
+        try { safeSettings.apply(cameraModel(), ws); }
+        catch (SafeSettings.Failure e) {
+            if (e.blocked) safetyStop(e.getMessage());
+            else { load(); if (settingsReady) applyPreview(); }
+            showToast(e.getMessage(), 0); render(); return;
         }
-        if (written > 0) NativeBackup.sync();                    // Backup_sync_all is void: nothing to catch, nothing to report
-        boolean ok = msg == null;
-        if (ok) msg = Lang.t(n == 1 ? "status_picked_one" : "status_picked_many", n);
-        // what was written is now the look: keep it on the chips — re-staging the recipe would drop edits just applied
-        // to a built-in one ("Apply only"); after a refusal, the recipe is staged again, ready to retry
         load();
-        if (!ok) stageRecipe(); else { rememberReopen(); rememberAppliedEdit(); }
-        showToast(msg, ok ? 5000 : 0); render();
+        if (!settingsReady) { render(); return; }
+        for (int i = 1; i < N; i++) if (Params.rowDirty(i, cur, wanted, storedSub())) { safetyStop("Read-back mismatch; stop and check camera menus"); render(); return; }
+        if (Params.redefinesBaseQuality(library.get(recipe), edit[R_QUAL])) prefs.edit().putInt("baseQuality", edit[R_QUAL]).commit();
+        verifiedPreview = previewValues(cur);
+        rememberReopen(); rememberAppliedEdit(); applyPreview();
+        showToast(previewOk ? Lang.t(n == 1 ? "status_picked_one" : "status_picked_many", n) : "Stored; preview unavailable. MENU: Exit", previewOk ? 5000 : 0); render();
     }
 
     /**
@@ -401,7 +446,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             default: {
                 String[] q = Params.qualityPrompt(cur, edit);
                 String[] opts = { Lang.t("button_accept"), Lang.t("button_cancel") };
-                prompt.set(q[0], q[1], opts, promptSel, qualityPersistent() ? null : Lang.t("quality_slot_note"));
+                String details = Recipes.displayName(r) + "\nQUALITY: KEEP (camera MENU)"
+                        + "\nEV: " + Recipes.evLabel(cur[R_EV]) + " -> " + Recipes.evLabel(edit[R_EV])
+                        + "\nPP: " + (cur[R_PP] == 0 ? "OFF" : "ON") + " -> OFF";
+                prompt.set("RX100M5 - APPLY", details, opts, promptSel, qualityPersistent() ? "MENU: Cancel" : Lang.t("quality_slot_note"));
             }
         }
         prompt.setVisibility(View.VISIBLE);
@@ -448,8 +496,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void cycleQuality() {
-        edit[R_QUAL] = (edit[R_QUAL] + 1) % 4; qualityChanged(); applyPreview(); render();
-        showToast(Lang.t(qualityPersistent() ? "status_quality_pick" : "status_quality_live", qualityLabel(edit[R_QUAL])), 2500);
+        showToast("Set Quality in camera MENU; restart this app", 5000);
     }
 
     // ------------------------------------------------------------ snapshot / diff of the whole settings store (developer menu)
@@ -667,6 +714,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     /** shoot one frame per recipe, in table order: the gallery of issue #17, and a preview-pipeline test */
     private void startRun() {
+        if (cur[R_QUAL] <= Q_RAWJPG) { showToast("Batch samples require JPEG. Set Quality in camera MENU; restart app", 5000); return; }
         if (camera == null || !previewOk) { showToast(DevTools.noPreview(), 5000); return; }
         running = true; runFrame = 0; runReturnTo = recipe;
         runLog = new StringBuilder(DevTools.manifestHeader(Recipes.ALL.length, settleMs())).append('\n');
@@ -679,7 +727,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         if (runFrame >= Recipes.ALL.length) { endRun(DevTools.doneMessage(runFrame, Recipes.ALL.length)); return; }
         recipe = runFrame;
         stageRecipe();
-        edit[R_QUAL] = Q_FINE;                                  // a sample is only a sample as a JPEG with the look in it, whatever the user shoots
+        edit[R_QUAL] = cur[R_QUAL];                             // preserve RX100M5 compression/format, including Extra Fine
         applyPreview(); render();
         showToast(DevTools.progress(runFrame + 1, Recipes.ALL.length, Recipes.displayName(Recipes.ALL[runFrame])), 0);
         handler.postDelayed(runShoot, settleMs());
@@ -979,11 +1027,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     // ------------------------------------------------------------ live preview (runtime params)
+    private Map<String, String> previewValues(int[] rows) {
+        return Rx100M5Policy.preview(rows, originalWhiteBalance);
+    }
     private void applyPreview() {
-        if (camera == null) return;
+        if (camera == null || !settingsReady) return;
+        if (!Rx100M5Policy.effectAllowed(edit)) { previewOk = false; previewErr = "JPEG only: use camera MENU"; return; }
         try {
             Camera.Parameters p = camera.getParameters();
-            for (Map.Entry<String, String> e : Params.preview(edit).entrySet()) p.set(e.getKey(), e.getValue());
+            // RX100M5 Extra Fine encoding is not assumed. Never touch file format or compression.
+            Map<String, String> preview = previewValues(edit);
+            for (Map.Entry<String, String> e : preview.entrySet()) p.set(e.getKey(), e.getValue());
             camera.setParameters(p);
             previewOk = true;
         } catch (Throwable t) { previewOk = false; previewErr = String.valueOf(t.getMessage()); }
@@ -1043,7 +1097,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 chipLabel[i].setText(Params.rowName(i));
                 chipLabel[i].setTextColor(foc ? INK : sel ? ACCENT : DIM);
                 chipValue[i].setTextColor(foc ? INK : ch ? ACCENT : WHITE);
-                chipValue[i].setText(Params.fmt(i, edit[i], edit));
+                chipValue[i].setText(i == R_QUAL ? "KEEP" : Params.fmt(i, edit[i], edit));
             }
             if (row == 0) chipScroll.post(new Runnable() { public void run() { chipScroll.smoothScrollTo(0, 0); } });
             else {
@@ -1067,7 +1121,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     /** change the value of the focused chip */
     private void stepValue(int dir) {
         if (row == 0) return;
+        if (row == R_QUAL) { cycleQuality(); return; }
         if (Params.step(edit, row, dir, recipeQuality(library.get(recipe)))) qualityChanged();
+        edit[R_QUAL] = cur[R_QUAL];
         applyPreview(); render();
     }
 
@@ -1230,6 +1286,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e) {
         int sc = e.getScanCode();
+        if (!settingsReady) {
+            if (isMenu(sc) || keyCode == KeyEvent.KEYCODE_BACK) { finish(); return true; }
+            showToast("STOP: " + safetyError + " / MENU: Exit", 0); return true;
+        }
         if (logging) return logKey(e, true);
         if (e.getRepeatCount() > 0 && oneShot(sc)) return true;  // held Fn / trash / MENU / centre act once
         if (isMenu(sc) && menuKeyHold.isDown()) return true;     // still the press that opened the menu: not a second press
