@@ -4,7 +4,7 @@ $java = "$audit\tools\zulu21\zulu21.52.203-ca-jdk21.0.12.1-win_x64\bin"
 Push-Location $PSScriptRoot
 try {
     New-Item -ItemType Directory -Force 'out-safe\test-classes' | Out-Null
-    $units = 'Recipes','Params','Favourites','CustomRecipes','RecipeFormat','RecipeFormats','RecipeFormatV1','Library','NameEntry','DevTools','Keys','KeyProbe','Lang','TextEn','TextZhHans','TextZhHant','SafeSettings','SafeRecipeFiles','Rx100M5Policy'
+    $units = 'Recipes','Params','Favourites','CustomRecipes','RecipeFormat','RecipeFormats','RecipeFormatV1','Library','NameEntry','DevTools','Keys','KeyProbe','Lang','TextEn','TextZhHans','TextZhHant','SafeSettings','SafeRecipeFiles','Rx100M5Policy','ReviewIndex','SonyAppSession'
     $sources = $units | ForEach-Object { "src\com\voxivoid\recipelab\$_.java" }
     & "$java\javac.exe" -encoding UTF-8 --release 8 -Xlint:-options -d 'out-safe\test-classes' @sources
     if ($LASTEXITCODE -ne 0) { throw 'Compile failed' }

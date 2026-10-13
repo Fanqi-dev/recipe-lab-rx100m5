@@ -223,6 +223,7 @@ public class MenuView extends View {
                 c.drawLine(cx - s * 0.45f, cy - s * 0.35f, cx - s * 0.45f, cy - s * 0.1f, glyph);
                 c.drawLine(cx + s * 0.45f, cy - s * 0.35f, cx + s * 0.45f, cy - s * 0.1f, glyph);
                 return;
+            case DevTools.IC_REVIEW:
             case DevTools.IC_SAMPLES:                               // a gallery: four frames
                 for (int k = 0; k < 4; k++) {
                     float x0 = cx + (k % 2 == 0 ? -s : s * 0.12f), y0 = cy + (k < 2 ? -s : s * 0.12f);

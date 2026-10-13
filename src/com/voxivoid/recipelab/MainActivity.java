@@ -2,6 +2,7 @@ package com.voxivoid.recipelab;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
+import android.content.Intent;
 import android.graphics.Typeface;
 import android.hardware.Camera;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.FrameLayout;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -85,7 +87,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final int PAGE_ROWS = 0, PAGE_ABOUT = 1;
     private Keys.Caps caps = Keys.Caps.UNKNOWN;                 // the shortcut keys this body reports (KeyProbe)
     private HintBar hints;
-    private SponsorLine sponsor;
+    private PhotoReviewView photoReview;
+    private int reviewCloseScan = -1, reviewCloseKey = -1;
     private LinearLayout chips;
     private final TextView[] chipLabel = new TextView[N], chipValue = new TextView[N];
     private final View[] chip = new View[N];
@@ -160,7 +163,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         count = (TextView) findViewById(R.id.count);
         meta = (TextView) findViewById(R.id.meta);
         hints = (HintBar) findViewById(R.id.hints);
-        sponsor = (SponsorLine) findViewById(R.id.sponsor);
         mini = (TextView) findViewById(R.id.mini);
         toast = (TextView) findViewById(R.id.toast);
         prompt = (PromptView) findViewById(R.id.prompt);
@@ -176,6 +178,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         SurfaceView sv = (SurfaceView) findViewById(R.id.surface);
         holder = sv.getHolder();
         holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+        photoReview = new PhotoReviewView(this);
+        ((FrameLayout) findViewById(android.R.id.content)).addView(photoReview, new FrameLayout.LayoutParams(-1, -1));
+        photoReview.setTypeface(UiFont.of(this, Lang.current()));
     }
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
@@ -217,12 +222,22 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Lang.use(Lang.resolve(langChoice, l == null ? null : l.getLanguage(), l == null ? null : l.getCountry()));
         Typeface tf = UiFont.of(this, Lang.current());
         UiFont.apply(findViewById(android.R.id.content), tf);
-        picker.setTypeface(tf); prompt.setTypeface(tf); menu.setTypeface(tf); hints.setTypeface(tf); keyboard.setTypeface(tf); sponsor.setTypeface(tf);
+        picker.setTypeface(tf); prompt.setTypeface(tf); menu.setTypeface(tf); hints.setTypeface(tf); keyboard.setTypeface(tf);
+        if (photoReview != null) photoReview.setTypeface(tf);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        // Sony's shooting-session contract: playback is handled here, not a pull-back-to-native key.
+        Intent appInfo = new Intent(SonyAppSession.ACTION);
+        appInfo.putExtra("package_name", getComponentName().getPackageName());
+        appInfo.putExtra("class_name", getComponentName().getClassName());
+        appInfo.putExtra("large_category", "CATEGORY_REC");
+        appInfo.putExtra("small_category", "STILL");
+        appInfo.putExtra("pullingback_key", SonyAppSession.pullingBackKeys());
+        appInfo.putExtra("resume_key", SonyAppSession.resumeKeys());
+        sendBroadcast(appInfo);
         settingsReady = false;
         safeSettings = new SafeSettings(new SafeSettings.Store() {
             public byte[] read(int id) throws Exception { return NativeBackup.read(id); }
@@ -259,6 +274,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     protected void onPause() {
         super.onPause();
+        if (photoReview != null) photoReview.close();
+        reviewCloseScan = reviewCloseKey = -1;
         stopRun(false);                                          // a run cannot outlive the camera it shoots with
         closeMenu();
         closeName();
@@ -281,6 +298,25 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         try { if (camera != null) camera.stopPreview(); } catch (Throwable t) {}
         try { if (cameraEx != null) cameraEx.getClass().getMethod("release").invoke(cameraEx); } catch (Throwable t) {}
         cameraEx = null; camera = null;
+    }
+
+    @Override protected void onDestroy() {
+        if (photoReview != null) photoReview.dispose();
+        super.onDestroy();
+    }
+
+    private void openPhotos() {
+        if (running) { showToast("Stop the sample run before photo review", 3000); return; }
+        if (logging) stopLogger();
+        closeMenu();
+        handler.removeCallbacks(enterHold); handler.removeCallbacks(menuHold); handler.removeCallbacks(trashHold);
+        enter.reset(); menuKeyHold.reset(); trash.reset(); swallowMenuUp = false;
+        File card = null;
+        try {
+            String state = Environment.getExternalStorageState();
+            if (Environment.MEDIA_MOUNTED.equals(state) || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) card = Environment.getExternalStorageDirectory();
+        } catch (Exception ignored) { }
+        photoReview.open(card); // same Activity; staged edits and selection stay in memory
     }
 
     public void surfaceCreated(SurfaceHolder h) {
@@ -610,6 +646,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 case DevTools.APP_PANEL: case DevTools.APP_LANG: stepMenuValue(+1); break;
                 case DevTools.APP_RESET: closeMenu(); askReset(); break;
                 case DevTools.APP_ABOUT: menuPage = PAGE_ABOUT; renderMenu(); break;
+                case DevTools.APP_REVIEW: openPhotos(); break;
                 case DevTools.APP_DEV: menuLevel = DevTools.LEVEL_DEV; menuSel = 0; renderMenu(); break;
             }
             return;
@@ -1056,8 +1093,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         String pos = library.position(recipe);
         String grp = Recipes.groupLabel(r.group).toUpperCase();
         picker.setVisibility(overlay == OV_BROWSER ? View.VISIBLE : View.GONE);
-        sponsor.setText(DevTools.sponsorLine());                     // the README's ask, small, over the live view
-        sponsor.setVisibility(panelUp(overlay) ? View.VISIBLE : View.GONE);   // Full and No keys; Label and Hidden hide it
         if (overlay == OV_BROWSER) { panel.setVisibility(View.GONE); mini.setVisibility(View.GONE); picker.set(recipe, browserCol, browserGroup, favs, library, cardDir != null); return; }
         if (panelUp(overlay)) {
             panel.setVisibility(View.VISIBLE); mini.setVisibility(View.GONE);
@@ -1286,6 +1321,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e) {
         int sc = e.getScanCode();
+        if (photoReview.isOpen()) {
+            if (isMenu(sc) || sc == K_PLAY || keyCode == KeyEvent.KEYCODE_BACK) {
+                if (e.getRepeatCount() == 0) {
+                    photoReview.close(); reviewCloseScan = sc; reviewCloseKey = keyCode; render();
+                }
+            } else if (sc == K_LEFT || sc == K_RIGHT || turn(sc) != 0) {
+                photoReview.step(sc == K_LEFT ? -1 : sc == K_RIGHT ? 1 : turn(sc));
+            }
+            return true; // no capture, writes, reset, delete or favourite behind the viewer
+        }
+        if (sc == K_PLAY) { if (e.getRepeatCount() == 0) openPhotos(); return true; }
         if (!settingsReady) {
             if (isMenu(sc) || keyCode == KeyEvent.KEYCODE_BACK) { finish(); return true; }
             showToast("STOP: " + safetyError + " / MENU: Exit", 0); return true;
@@ -1334,6 +1380,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent e) {
         int sc = e.getScanCode();
+        if (photoReview.isOpen()) return true;
+        if (sc == reviewCloseScan && keyCode == reviewCloseKey) {
+            reviewCloseScan = reviewCloseKey = -1; return true;
+        }
         if (logging) return logKey(e, false);
         // the hold bookkeeping runs on every release, whatever is on screen, or a lost release would block the next press
         if (isTrash(sc)) { handler.removeCallbacks(trashHold); if (trash.up() == Keys.Hold.SHORT) trashPress(); }

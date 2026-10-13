@@ -44,6 +44,8 @@ UNITS=(
   src/com/voxivoid/recipelab/SafeSettings.java
   src/com/voxivoid/recipelab/SafeRecipeFiles.java
   src/com/voxivoid/recipelab/Rx100M5Policy.java
+  src/com/voxivoid/recipelab/ReviewIndex.java
+  src/com/voxivoid/recipelab/SonyAppSession.java
 )
 
 mkdir -p out/test

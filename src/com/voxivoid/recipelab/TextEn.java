@@ -169,7 +169,8 @@ final class TextEn {
         { "about_firmware", "firmware" },
         { "about_platform", "platform" },
         { "about_source", "source" },
-        { "about_love", "Do you love this project? Sponsor it!" },
+        { "menu_review", "Photo review" },
+        { "menu_review_detail", "Read-only JPEG viewer; MENU returns to your recipe" },
 
         // ---- the developer menu and the sample run
         { "dev_title", "DEV TOOLS" },

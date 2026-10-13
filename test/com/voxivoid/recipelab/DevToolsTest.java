@@ -61,7 +61,7 @@ class DevToolsTest {
         assertEquals(DevTools.ROWS, DevTools.rows(DevTools.LEVEL_DEV));
         String[] labels = new String[DevTools.APP_ROWS];
         for (int r = 0; r < DevTools.APP_ROWS; r++) labels[r] = DevTools.appLabel(r);
-        assertEquals(Arrays.asList("Browse recipes", "New recipe", "Panel visibility", "Language", "Reset settings", "About", "Developer  >"), Arrays.asList(labels));
+        assertEquals(Arrays.asList("Browse recipes", "New recipe", "Panel visibility", "Language", "Reset settings", "About", "Photo review", "Developer  >"), Arrays.asList(labels));
         assertTrue(DevTools.appDetail(DevTools.APP_NEW).contains("current settings"), "the row says what it keeps");
         assertEquals(DevTools.APP_BROWSE, 0, "the menu opens on Browse, so a body without Fn is one press from the list");
     }
@@ -143,10 +143,10 @@ class DevToolsTest {
         assertEquals("source", a[4][0]);
         assertEquals("unknown", DevTools.about(null, null, null, null)[2][1], "no firmware from the camera");
         String[] f = DevTools.aboutFooter();
-        assertEquals("Do you love this project? Sponsor it!", f[0], "the README's ask");
-        assertEquals("ko-fi.com/voxivoid", f[1], "Ko-fi first: no GitHub account needed");
-        assertEquals("github.com/sponsors/voxivoid", f[2]);
-        assertEquals("Do you love this project? Sponsor it!  ko-fi.com/voxivoid", DevTools.sponsorLine(), "the live view's line");
+        assertEquals(0, f.length, "no donation promotion in the application UI");
+        assertEquals("", DevTools.sponsorLine(), "no live-view promotion");
+        assertEquals("", DevTools.SPONSOR_URL);
+        assertEquals("github.com/voxivoid/recipe-lab-sony-pmca", a[4][1], "upstream attribution retained");
         assertEquals("ILCE-6000", DevTools.about(null, "ILCE-6000", null, "2.4")[1][1]);
     }
 

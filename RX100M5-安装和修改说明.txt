@@ -1,15 +1,16 @@
 Recipe Lab RX100M5 修复测试版
-版本：1.6.2-rx100m5.1（基于官方 v1.6.2）
+版本：1.6.2-rx100m5.2（基于官方 v1.6.2）
 日期：2026-10-14
 
 安装文件
-RecipeLab-RX100M5-safe-1.6.2.1.apk
-SHA-256: e20e17a0af63e921c8d0a23b1e891348f23884af0bc8d46f37cb7ae6aba8d653
+RecipeLab-RX100M5-review-1.6.2.2.apk
+SHA-256: d8b9c0a07d99e749a9437865c496706951ecbd5ffc9475efa73194acb88e2d2f
 包名：com.voxivoid.recipelab.rx100m5safe
 应用列表显示：Recipe Lab RX100M5
 这是本地修改、独立签名的测试版，不是官方发布版，也未经过 RX100M5 实机验收。
 
 如何安装
+本版与第一版包名、签名相同，可直接覆盖，不必卸载；如果恢复事务未完成，先恢复再更新。
 1. 用之前可以识别 RX100M5 的 PMCA 和 USB 模式连接。电池充足、插有存储卡。
 2. PMCA -> Install app -> Select an apk -> Open apk，选择本 APK。
 3. 点击 Install selected app，等待电脑出现 Task completed successfully。
@@ -25,6 +26,13 @@ SHA-256: e20e17a0af63e921c8d0a23b1e891348f23884af0bc8d46f37cb7ae6aba8d653
 MENU 返回/退出、长按 MENU 进入应用菜单；不重新定义相机镜头控制环或变焦杆。
 确认成功后退出应用，正常拍摄使用索尼原生界面、快门、模式拨盘、变焦和对焦操作。
 本版不是对索尼整个拍摄界面的重写。
+
+应用内照片回看
+相册键打开只读 JPEG 回看，左右/拨轮切换，MENU/返回键/再按相册键关闭，返回原配方界面。
+备用入口：长按 MENU -> 浏览照片；该入口不启动原生相册。
+只读取 DCIM 中按文件修改时间排序的最新 500 张 JPEG，后台缩采样，不删除、不改名、不写媒体数据库。
+不支持 RAW、视频、删除或原图放大；首页及关于页的赞助提示已删除，署名和许可保留。
+物理相册键是否完全不被 RX100M5 固件抢走，需要实机验证；若仍切走，先用备用菜单入口。
 
 画质：交还原生菜单
 RX100M5 有 Extra Fine JPEG，不能按 A6000 的档位猜测压缩编码。
@@ -58,7 +66,7 @@ RECOVERY / SAVING.BAK 等卡片错误：先复制备份整个 RECIPES 目录，�
 因未知属性/长度而拒绝时，不提供“强制写入”按钮；需根据实机日志定位，不直接放宽检查。
 
 验证范围
-333 项主机端 Java 测试全部通过：原项目测试 + 回滚、失败读回、恢复日志损坏、
+346 项主机端 Java 测试全部通过：原项目测试 + 回滚、失败读回、恢复日志损坏、
 中断恢复、原文件保存失败、RAW/JPEG 保留、预设白平衡和默认取消等回归测试。
 新增中断测试是 Java 故障注入，不是真相机掉电测试。
 编译目标 minSdk/targetSdk 10，ARM JNI 库复用官方发布文件，字节完全相同。
@@ -86,4 +94,5 @@ build-safe.ps1 使用上一级 tools 内的 JDK 21、Android API 28、build-tool
 不要丢失它，否则后续相同包名不同签名的 APK 不能直接覆盖安装。该口令不是任何账户凭据。
 原项目作者 voxivoid，原始源码 https://github.com/voxivoid/recipe-lab-sony-pmca ，MIT 许可。
 公开派生仓库：https://github.com/Fanqi-dev/recipe-lab-rx100m5
+本次第二版尚未上传；该仓库当前 Release 可能仍是第一版。
 本版没有自动更新服务、网络上传或新增网络权限。

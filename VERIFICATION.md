@@ -1,21 +1,21 @@
 # Release 验证记录
 
-版本：1.6.2-rx100m5.1。基线：c5a345d80177b45f3ee6fc93a5841ad771ea60bb。
+版本：1.6.2-rx100m5.2。基线：c5a345d80177b45f3ee6fc93a5841ad771ea60bb。
 
 | 项目 | 结果 |
 | --- | --- |
-| 主机 Java 单元/故障注入测试 | 333 成功，0 失败/跳过/中止 |
-| 新增测试 | SafeSettings 13、SafeRecipeFiles 7、Rx100M5Policy 6 |
+| 主机 Java 单元/故障注入测试 | 346 成功，0 失败/跳过/中止 |
+| 新增测试 | 第一版保护逻辑 26；第二版照片索引/采样/分页/会话协议 13 |
 | APK 签名 | apksigner min SDK 10 验证通过；v1 签名 |
 | ZIP 对齐 | zipalign -c 4 通过 |
-| 最终 APK 复核 | REA 6.4.0 / JADX 0.7.1；69 类、604 方法；完整 Java 导出报告 0 反编译错误（存在重建警告） |
+| 最终 APK 复核 | REA 6.4.0 / JADX 0.7.1；81 类（含内部类）、653 方法；完整 Java 导出报告 0 反编译错误 |
 | 原生库 | 与官方 v1.6.2 提取文件逐字节相同 |
 | 真机验证 | **未进行** |
 
-最终 APK：`RecipeLab-RX100M5-safe-1.6.2.1.apk`，335831 字节。
+最终 APK：`RecipeLab-RX100M5-review-1.6.2.2.apk`，341080 字节。
 
 ```text
-e20e17a0af63e921c8d0a23b1e891348f23884af0bc8d46f37cb7ae6aba8d653  RecipeLab-RX100M5-safe-1.6.2.1.apk
+d8b9c0a07d99e749a9437865c496706951ecbd5ffc9475efa73194acb88e2d2f  RecipeLab-RX100M5-review-1.6.2.2.apk
 ```
 
 官方输入 APK SHA-256：`7f7364ce3cee71e62bdf2b1a0c0ac0fe336e80934cfa9684affb375c05529d6a`。

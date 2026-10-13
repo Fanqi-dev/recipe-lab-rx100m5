@@ -1,8 +1,10 @@
 # Recipe Lab RX100M5 — 修复测试版
 
+当前本地版为 **1.6.2-rx100m5.2**：移除赞助栏、加入只读 JPEG 回看并补全索尼系统会话登记，346 项主机测试通过。此第二版尚未上传 GitHub，仓库 Releases 链接仍可能只有第一版；安装与限制见 CHANGELOG-RX100M5.md。
+
 本仓库是 [voxivoid/recipe-lab-sony-pmca](https://github.com/voxivoid/recipe-lab-sony-pmca) 的非官方派生版，基于官方 **v1.6.2 / c5a345d80177b45f3ee6fc93a5841ad771ea60bb**。只针对 **DSC-RX100M5**，不是 RX100M5A，也不是通用索尼版。
 
-**尚未经过相机实机验收。333 项主机端测试通过不等于实机安全保证。请把 Release 当作预发布测试版，不是官方稳定版。**
+**尚未经过相机实机验收。346 项主机端测试通过不等于实机安全保证。请把安装包当作预发布测试版，不是官方稳定版。**
 
 下载：[Releases](https://github.com/Fanqi-dev/recipe-lab-rx100m5/releases) · 修改说明：[CHANGELOG-RX100M5.md](CHANGELOG-RX100M5.md) · 安装与恢复：[RX100M5-安装和修改说明.txt](RX100M5-安装和修改说明.txt) · 验证范围：[VERIFICATION.md](VERIFICATION.md)
 
