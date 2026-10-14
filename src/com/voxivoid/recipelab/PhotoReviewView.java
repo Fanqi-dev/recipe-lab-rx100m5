@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.media.ExifInterface;
 import android.os.Handler;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -26,7 +27,9 @@ final class PhotoReviewView extends FrameLayout {
     private final ThreadPoolExecutor worker = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<Runnable>(1), new ThreadPoolExecutor.DiscardOldestPolicy());
     private final Image image;
-    private final TextView title, help;
+    private final TextView title;
+    private final HintBar help;
+    private final FrameLayout footer;
     private List<ReviewIndex.Photo> photos;
     private int index;
     private volatile int generation;
@@ -36,19 +39,24 @@ final class PhotoReviewView extends FrameLayout {
     PhotoReviewView(Context context) {
         super(context); setBackgroundColor(Color.BLACK); setVisibility(GONE);
         image = new Image(context); addView(image, new LayoutParams(-1, -1));
-        title = text(context, Gravity.TOP); help = text(context, Gravity.BOTTOM);
-        title.setTextSize(16); help.setTextSize(13);
-        help.setText("LEFT / RIGHT / wheel: photo    MENU: return\nJPEG only / read-only / newest 500");
+        title = text(context, Gravity.TOP);
+        title.setTextSize(15); title.setSingleLine(true); title.setEllipsize(TextUtils.TruncateAt.END);
+        footer = new FrameLayout(context); footer.setBackgroundColor(SonyUi.BACKGROUND);
+        int pad = (int) (6 * context.getResources().getDisplayMetrics().density);
+        footer.setPadding(pad, pad, pad, pad);
+        help = new HintBar(context, null); help.setMode(HintBar.REVIEW);
+        footer.addView(help, new LayoutParams(-1, -2));
+        addView(footer, new LayoutParams(-1, -2, Gravity.BOTTOM));
     }
     private TextView text(Context context, int gravity) {
-        TextView t = new TextView(context); t.setTextColor(Color.WHITE); t.setBackgroundColor(0xBB000000);
+        TextView t = new TextView(context); t.setTextColor(Color.WHITE); t.setBackgroundColor(SonyUi.HEADER);
         t.setPadding(8, 4, 8, 4);
         LayoutParams p = new LayoutParams(-1, -2, gravity); addView(t, p); return t;
     }
     void setTypeface(Typeface t) { title.setTypeface(t); help.setTypeface(t); }
     boolean isOpen() { return open; }
     void open(final File card) {
-        close(); open = true; setVisibility(VISIBLE); title.setText("Loading JPEG photos...");
+        close(); open = true; setVisibility(VISIBLE); title.setText(Lang.t("review_loading"));
         final int ticket = ++generation;
         pending = worker.submit(new Runnable() {
             public void run() {
@@ -60,12 +68,12 @@ final class PhotoReviewView extends FrameLayout {
                         public void run() {
                             if (stale(ticket)) return;
                             photos = found; index = 0;
-                            if (photos.isEmpty()) title.setText("No JPEG photos in DCIM. MENU: return");
+                            if (photos.isEmpty()) title.setText(Lang.t("review_empty"));
                             else load();
                         }
                     });
-                } catch (Exception e) { error(ticket, "Cannot read DCIM. MENU: return"); }
-                catch (OutOfMemoryError e) { error(ticket, "Not enough memory. MENU: return"); }
+                } catch (Exception e) { error(ticket, Lang.t("review_read_error")); }
+                catch (OutOfMemoryError e) { error(ticket, Lang.t("review_memory")); }
             }
         });
     }
@@ -75,7 +83,7 @@ final class PhotoReviewView extends FrameLayout {
         if (pending != null) pending.cancel(true);
         final int ticket = ++generation;
         final File f = photos.get(index).file;
-        title.setText((index + 1) + " / " + photos.size() + "   " + f.getName() + "   Loading...");
+        title.setText((index + 1) + " / " + photos.size() + "   " + f.getName() + "   " + Lang.t("review_loading"));
         // Drop the previous bitmap BEFORE decoding; never accumulate full-resolution images.
         releaseBitmap();
         pending = worker.submit(new Runnable() {
@@ -102,8 +110,8 @@ final class PhotoReviewView extends FrameLayout {
                             title.setText((index + 1) + " / " + photos.size() + "   " + f.getName());
                         }
                     });
-                } catch (Exception e) { if (decoded != null) decoded.recycle(); error(ticket, "Cannot decode JPEG. LEFT/RIGHT: next; MENU: return"); }
-                catch (OutOfMemoryError e) { if (decoded != null) decoded.recycle(); error(ticket, "Image too large. LEFT/RIGHT: next; MENU: return"); }
+                } catch (Exception e) { if (decoded != null) decoded.recycle(); error(ticket, Lang.t("review_image_error")); }
+                catch (OutOfMemoryError e) { if (decoded != null) decoded.recycle(); error(ticket, Lang.t("review_memory")); }
             }
         });
     }
@@ -119,8 +127,9 @@ final class PhotoReviewView extends FrameLayout {
             Bitmap b = bitmap; if (b == null || b.isRecycled()) return;
             boolean swap = orientation >= 5 && orientation <= 8;
             float w = swap ? b.getHeight() : b.getWidth(), h = swap ? b.getWidth() : b.getHeight();
-            float scale = Math.min(getWidth() / w, Math.max(1, getHeight() - 100) / h);
-            c.save(); c.translate(getWidth() / 2f, getHeight() / 2f); c.scale(scale, scale);
+            float available = Math.max(1, getHeight() - title.getHeight() - footer.getHeight());
+            float scale = Math.min(getWidth() / w, available / h);
+            c.save(); c.translate(getWidth() / 2f, title.getHeight() + available / 2); c.scale(scale, scale);
             switch (orientation) {
                 case 2: c.scale(-1, 1); break;
                 case 3: c.rotate(180); break;

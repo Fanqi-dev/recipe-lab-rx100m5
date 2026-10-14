@@ -16,7 +16,7 @@ import android.view.View;
  * has no arrow glyphs.
  */
 public class KeyboardView extends View {
-    private static final int ACCENT = 0xFFF2B85C, INK = 0xFF1A1208;
+    private static final int ACCENT = SonyUi.ACCENT, INK = SonyUi.ON_ACCENT;
 
     private final Paint bg = new Paint(Paint.ANTI_ALIAS_FLAG), head = new Paint(Paint.ANTI_ALIAS_FLAG), field = new Paint(Paint.ANTI_ALIAS_FLAG),
             box = new Paint(Paint.ANTI_ALIAS_FLAG), err = new Paint(Paint.ANTI_ALIAS_FLAG), cell = new Paint(Paint.ANTI_ALIAS_FLAG),
@@ -31,16 +31,16 @@ public class KeyboardView extends View {
 
     public KeyboardView(Context c, AttributeSet a) {
         super(c, a);
-        d = c.getResources().getDisplayMetrics().density;
+        d = UiScale.of(c);
         legend = new Legend(d);
-        bg.setColor(0xF0101010);
-        head.setColor(ACCENT); head.setTextSize(9 * d); head.setFakeBoldText(true);
+        bg.setColor(SonyUi.BACKGROUND);
+        head.setColor(SonyUi.TEXT); head.setTextSize(14 * d); head.setFakeBoldText(false);
         field.setTextSize(17 * d); field.setFakeBoldText(true);
         box.setColor(ACCENT); box.setStyle(Paint.Style.STROKE); box.setStrokeWidth(1.5f * d);
         err.setColor(0xFFFF8A65); err.setTextSize(10 * d);
         label.setTextSize(13 * d); label.setFakeBoldText(true); label.setTextAlign(Paint.Align.CENTER);
         glyph.setStyle(Paint.Style.STROKE); glyph.setStrokeWidth(1.5f * d);
-        rule.setColor(0x33FFFFFF);
+        rule.setColor(SonyUi.RULE);
     }
 
     /** the display language's typeface ({@link UiFont}) */
@@ -59,14 +59,14 @@ public class KeyboardView extends View {
         float w = getWidth(), h = getHeight(), pad = 16 * d;
         float legTop = h - pad - legend.height(legend.lines(w - 2 * pad, hints)) + 2 * d;   // the legend, on as many lines as it needs
         c.drawRect(0, 0, w, h, bg);
-        c.drawText(title.toUpperCase(), pad, pad + 7 * d, head);
-        float top = pad + 14 * d;
+        c.drawText(CanvasText.fit(head, title, w - 2 * pad), pad, 23 * d, head);
+        float top = 32 * d;
         c.drawLine(pad, top, w - pad, top, rule);
 
         // ---- the field
         float fy = top + 10 * d, fh = 32 * d;
-        r.set(pad, fy, w - pad, fy + fh); c.drawRoundRect(r, 4 * d, 4 * d, box);
-        String text = entry.shown();
+        r.set(pad, fy, w - pad, fy + fh); c.drawRect(r, box);
+        String text = CanvasText.fit(field, entry.shown(), w - 2 * pad - 24 * d);
         field.setColor(entry.isPlaceholder() ? 0x66FFFFFF : 0xFFFFFFFF);
         float base = fy + fh / 2 - (field.ascent() + field.descent()) / 2, tx = pad + 10 * d;
         c.drawText(text, tx, base, field);
@@ -76,11 +76,11 @@ public class KeyboardView extends View {
             c.drawRect(cx, fy + 7 * d, cx + 2 * d, fy + fh - 7 * d, field);
         }
         float ey = fy + fh + 14 * d;
-        if (entry.error() != null) c.drawText(entry.error(), pad, ey, err);
+        if (entry.error() != null) c.drawText(CanvasText.fit(err, entry.error(), w - 2 * pad), pad, ey, err);
 
         // ---- the keyboard
         float gTop = ey + 8 * d, gBottom = legTop - 10 * d, rows = NameEntry.rows();
-        float rh = Math.min(34 * d, (gBottom - gTop) / rows), gw = w - 2 * pad, gap = 3 * d;
+        float rh = Math.max(1, Math.min(34 * d, (gBottom - gTop) / rows)), gw = w - 2 * pad, gap = 3 * d;
         for (int row = 0; row < rows; row++) {
             int n = NameEntry.cols(row);
             float cw = gw / n, y = gTop + row * rh;
@@ -89,7 +89,7 @@ public class KeyboardView extends View {
                 float x = pad + col * cw;
                 r.set(x + gap / 2, y + gap / 2, x + cw - gap / 2, y + rh - gap / 2);
                 cell.setColor(on ? ACCENT : 0x26FFFFFF);
-                c.drawRoundRect(r, 4 * d, 4 * d, cell);
+                c.drawRect(r, cell);
                 int ink = on ? INK : 0xFFFFFFFF;
                 label.setColor(ink); glyph.setColor(ink);
                 drawCell(c, NameEntry.cell(row, col), r.centerX(), r.centerY());

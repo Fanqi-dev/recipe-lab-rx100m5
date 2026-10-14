@@ -8,7 +8,7 @@ import android.view.View;
 
 /** Key legend under the main panel, for the keys this body has ({@link Keys#hints}), on as many lines as it needs. */
 public class HintBar extends View {
-    public static final int RECIPE = Keys.H_RECIPE, CHIPS = Keys.H_CHIPS, EDIT = Keys.H_EDIT;
+    public static final int RECIPE = Keys.H_RECIPE, CHIPS = Keys.H_CHIPS, EDIT = Keys.H_EDIT, REVIEW = Keys.H_REVIEW;
 
     private final Legend legend;
     private int mode = RECIPE;
@@ -16,7 +16,7 @@ public class HintBar extends View {
 
     public HintBar(Context c, AttributeSet a) {
         super(c, a);
-        legend = new Legend(c.getResources().getDisplayMetrics().density);
+        legend = new Legend(UiScale.of(c));
     }
 
     public void setMode(int m) { if (mode != m) { mode = m; requestLayout(); invalidate(); } }   // another row may need another line count

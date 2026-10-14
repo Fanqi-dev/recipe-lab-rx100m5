@@ -26,7 +26,7 @@ public class Legend {
         d = density;
         fill.setColor(0xCCFFFFFF); fill.setStyle(Paint.Style.FILL);
         stroke.setColor(0xCCFFFFFF); stroke.setStyle(Paint.Style.STROKE);
-        text.setColor(0x99FFFFFF);
+        text.setColor(SonyUi.MUTED);
         keyText.setColor(0xCCFFFFFF); keyText.setTextAlign(Paint.Align.CENTER); keyText.setFakeBoldText(true);
     }
 

@@ -52,10 +52,12 @@ import static com.voxivoid.recipelab.Params.*;
  * {@link Lang}, in the language the app menu picked; this class only applies it and its font ({@link UiFont}).
  */
 public class MainActivity extends Activity implements SurfaceHolder.Callback {
-    private static final int ACCENT = 0xFFF2B85C, INK = 0xFF1A1208, WHITE = 0xFFFFFFFF, DIM = 0x99FFFFFF;
+    private static final int ACCENT = SonyUi.ACCENT, INK = SonyUi.ON_ACCENT, WHITE = SonyUi.TEXT, DIM = SonyUi.MUTED;
 
     private View panel;
     private PickerView picker;
+    private LiveRecipeView live;
+    private ParameterCardView parameterCard;
     private HorizontalScrollView chipScroll;
     private boolean swallowMenuUp = false;
     private TextView name, nameOriginal, badge, editedBadge, tag, count, meta, mini, toast;
@@ -152,6 +154,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         settleIdx = DevTools.clampSettle(prefs.getInt("settle", DevTools.SETTLE_DEFAULT));
         langChoice = Lang.parseChoice(prefs.getString("language", null));
         panel = findViewById(R.id.panel);
+        live = (LiveRecipeView) findViewById(R.id.live_recipe);
+        parameterCard = (ParameterCardView) findViewById(R.id.parameter_card);
         picker = (PickerView) findViewById(R.id.picker);
         chipScroll = (HorizontalScrollView) findViewById(R.id.chipscroll);
         name = (TextView) findViewById(R.id.name);
@@ -174,7 +178,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         buildActions();
         applyLanguage();
         caps = KeyProbe.caps();
-        hints.setCaps(caps); picker.setCaps(caps);
+        hints.setCaps(caps); picker.setCaps(caps); live.setCaps(caps);
         SurfaceView sv = (SurfaceView) findViewById(R.id.surface);
         holder = sv.getHolder();
         holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
@@ -222,7 +226,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Lang.use(Lang.resolve(langChoice, l == null ? null : l.getLanguage(), l == null ? null : l.getCountry()));
         Typeface tf = UiFont.of(this, Lang.current());
         UiFont.apply(findViewById(android.R.id.content), tf);
-        picker.setTypeface(tf); prompt.setTypeface(tf); menu.setTypeface(tf); hints.setTypeface(tf); keyboard.setTypeface(tf);
+        picker.setTypeface(tf); prompt.setTypeface(tf); menu.setTypeface(tf); hints.setTypeface(tf); keyboard.setTypeface(tf); live.setTypeface(tf); parameterCard.setTypeface(tf);
         if (photoReview != null) photoReview.setTypeface(tf);
     }
 
@@ -265,10 +269,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         } catch (Throwable t) { previewOk = false; previewErr = String.valueOf(t); safetyStop("Camera initialization failed: " + previewErr); render(); return; }
         showRecipe();                                            // with the edits last applied, when the camera still holds them
         applyPreview(); render();
-        if (!prefs.getBoolean("keysNoticeSeen", false)) {               // the keys moved in this build (issue #18): say so once
-            showToast(Keys.notice(), 8000);
-            prefs.edit().putBoolean("keysNoticeSeen", true).commit();
-        }
     }
 
     @Override
@@ -485,7 +485,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 String details = Recipes.displayName(r) + "\nQUALITY: KEEP (camera MENU)"
                         + "\nEV: " + Recipes.evLabel(cur[R_EV]) + " -> " + Recipes.evLabel(edit[R_EV])
                         + "\nPP: " + (cur[R_PP] == 0 ? "OFF" : "ON") + " -> OFF";
-                prompt.set("RX100M5 - APPLY", details, opts, promptSel, qualityPersistent() ? "MENU: Cancel" : Lang.t("quality_slot_note"));
+                prompt.set("RX100M5 - APPLY", details, opts, promptSel, qualityPersistent() ? null : Lang.t("quality_slot_note"));
             }
         }
         prompt.setVisibility(View.VISIBLE);
@@ -603,7 +603,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
     private void renderMenu() {
-        if (menuPage == PAGE_ABOUT) menu.setPage(DevTools.aboutTitle(), DevTools.about(versionName(), KeyProbe.prop("model.name"),
+        if (menuPage == PAGE_ABOUT) menu.setPage(Lang.t("menu_title") + " / " + DevTools.aboutTitle(), DevTools.about(versionName(), KeyProbe.prop("model.name"),
                 KeyProbe.firmware(), KeyProbe.prop("version.platform")), DevTools.aboutFooter(), Keys.hints(Keys.H_PAGE, caps));
         else {
             int n = DevTools.rows(menuLevel);
@@ -618,7 +618,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             if (app) faces[DevTools.APP_LANG] = UiFont.of(this, Lang.choiceScript(langChoice));   // 简体中文 in its own font, whatever the menu's
             boolean value = values[menuSel] != null;
             int legend = app ? (value ? Keys.H_MENU_TOP_VALUE : Keys.H_MENU_TOP) : (value ? Keys.H_MENU_SUB_VALUE : Keys.H_MENU_SUB);
-            menu.set(app ? DevTools.APP_TITLE : DevTools.title(), labels, details, values, faces, DevTools.icons(menuLevel), menuSel, Keys.hints(legend, caps));
+            menu.set(app ? Lang.t("menu_title") : Lang.t("menu_title") + " / " + DevTools.title(), labels, details, values, faces, DevTools.icons(menuLevel), menuSel, Keys.hints(legend, caps));
         }
         menu.setVisibility(View.VISIBLE);
     }
@@ -1092,18 +1092,34 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         boolean dirty = dirty();
         String pos = library.position(recipe);
         String grp = Recipes.groupLabel(r.group).toUpperCase();
+        live.setVisibility(View.GONE);
+        parameterCard.setVisibility(View.GONE);
         picker.setVisibility(overlay == OV_BROWSER ? View.VISIBLE : View.GONE);
-        if (overlay == OV_BROWSER) { panel.setVisibility(View.GONE); mini.setVisibility(View.GONE); picker.set(recipe, browserCol, browserGroup, favs, library, cardDir != null); return; }
+        if (overlay == OV_BROWSER) { panel.setVisibility(View.GONE); mini.setVisibility(View.GONE); picker.set(recipe, browserCol, browserGroup, favs, library, cardDir != null, !dirty); return; }
+        String warning = Params.metaLine(edit, previewOk ? null : previewErr);
+        if (panelUp(overlay) && settingsReady && previewOk && warning.isEmpty() && focus && row > 0 && row != R_QUAL && !onActions) {
+            panel.setVisibility(View.GONE); mini.setVisibility(View.GONE);
+            parameterCard.set(Params.rowName(row),Params.fmt(row,edit[row],edit));
+            parameterCard.setVisibility(View.VISIBLE); return;
+        }
+        if (panelUp(overlay) && SonyUi.compactPanel(settingsReady && previewOk,row,onActions,!warning.isEmpty())) {
+            panel.setVisibility(View.GONE); mini.setVisibility(View.GONE);
+            String wb = edit[R_WBMODE] == WB_KELVIN ? Params.fmt(R_KELVIN,edit[R_KELVIN],edit) : Params.fmt(R_WBMODE,edit[R_WBMODE],edit);
+            int look = edit[R_PE] == 0 ? R_STYLE : R_PE;
+            String summary = Params.fmt(look,edit[look],edit) + "   WB " + wb + "   EV " + Params.fmt(R_EV,edit[R_EV],edit);
+            live.set(Recipes.displayName(r),grp,pos,summary,!dirty,edited(),overlay == OV_QUIET);
+            live.setVisibility(View.VISIBLE); return;
+        }
         if (panelUp(overlay)) {
             panel.setVisibility(View.VISIBLE); mini.setVisibility(View.GONE);
             name.setText(Recipes.displayName(r));
             name.setTextColor(row == 0 ? ACCENT : WHITE);
             String original = Recipes.originalName(r);            // a translated name keeps the canonical one under it
             nameOriginal.setText(original == null ? "" : original);
-            nameOriginal.setVisibility(original == null ? View.GONE : View.VISIBLE);
+            nameOriginal.setVisibility(View.GONE); // canonical name is available in the focused browser detail
             count.setText(grp + "   " + pos);
             tag.setText(Lang.t("tag_jpeg_only"));                    // a Picture Effect: the camera drops it under RAW
-            tag.setTextColor(ACCENT);
+            tag.setTextColor(DIM);
             tag.setVisibility(edit[R_PE] != 0 ? View.VISIBLE : View.GONE);
             fav.setVisibility(favs.contains(recipe) ? View.VISIBLE : View.GONE);
             // two questions, two badges: does the camera have what you see (ACTIVE / PREVIEW), and is it the recipe as it was (EDITED)
@@ -1174,7 +1190,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     /** LEFT/RIGHT inside the chip strip: next / previous visible chip, wrapping */
     private void moveChip(int dir) { row = Params.nextChip(row, dir, edit); lastChip = row; render(); }
 
-    private void setFocus(boolean f) { focus = f && row != 0 && !onButtons(); render(); }
+    private void setFocus(boolean f) {
+        if (f && row == R_QUAL) { focus = false; cycleQuality(); render(); return; }
+        focus = f && row != 0 && !onButtons(); render();
+    }
 
     /** the wheel, or left / right on the recipe line: the next recipe — after asking, when that would drop edits */
     private void nextRecipe(final int dir) {
@@ -1322,7 +1341,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     public boolean onKeyDown(int keyCode, KeyEvent e) {
         int sc = e.getScanCode();
         if (photoReview.isOpen()) {
-            if (isMenu(sc) || sc == K_PLAY || keyCode == KeyEvent.KEYCODE_BACK) {
+            if (Keys.reviewCloses(sc, keyCode == KeyEvent.KEYCODE_BACK)) {
                 if (e.getRepeatCount() == 0) {
                     photoReview.close(); reviewCloseScan = sc; reviewCloseKey = keyCode; render();
                 }

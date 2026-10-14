@@ -18,7 +18,7 @@
         android:background="@drawable/panel_bg"
         android:paddingLeft="12dp"
         android:paddingRight="12dp"
-        android:paddingTop="14dp"
+        android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
         <!-- brand and position, over the name: "FUJI SIM   2 / 18" -->
@@ -44,7 +44,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:ellipsize="end"
-                android:textSize="21sp"
+                android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="#FFFFFFFF"
                 android:shadowColor="#AA000000"
@@ -111,7 +111,7 @@
             android:layout_marginTop="1dp"
             android:textSize="11sp"
             android:textColor="#A6FFFFFF"
-            android:maxLines="3" />
+            android:maxLines="2" />
 
         <HorizontalScrollView
             android:id="@+id/chipscroll"
@@ -145,6 +145,13 @@
             android:layout_marginTop="7dp" />
     </LinearLayout>
 
+    <com.voxivoid.recipelab.LiveRecipeView
+        android:id="@+id/live_recipe"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:visibility="gone" />
+
     <!-- minimal overlay: recipe pill -->
     <TextView
         android:id="@+id/mini"
@@ -164,6 +171,13 @@
         android:id="@+id/picker"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
+        android:visibility="gone" />
+
+    <com.voxivoid.recipelab.ParameterCardView
+        android:id="@+id/parameter_card"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:visibility="gone" />
 
     <!-- RAW / JPEG prompt -->

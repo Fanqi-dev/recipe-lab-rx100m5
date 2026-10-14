@@ -41,8 +41,8 @@ final class TextEn {
         { "quality_prompt_effect", "JPEG is needed to apply this recipe." },
         { "quality_prompt_style", "Creative Style recipes use the Factory recipe's quality." },
         { "quality_slot_note", "quality slot not located yet — live view only" },
-        { "reset_title", "Reset to factory settings?" },
-        { "reset_body", "Stores Standard 0 / 0 / 0, auto white balance, no effect, in place of the current look" },
+        { "reset_title", "Reset recipe settings?" },
+        { "reset_body", "Replace the current look with Standard, zero contrast / saturation / sharpness, auto white balance and no picture effect. Image quality is kept." },
         { "button_accept", "Accept" },
         { "button_reset", "Reset" },
         { "button_cancel", "Cancel" },
@@ -64,7 +64,6 @@ final class TextEn {
         { "favourite_removed", "%1$s removed from Favourites" },
         { "favourite_empty_title", "No favourites yet" },
         { "favourite_empty_hint", "Hold the centre button on a recipe to keep it here" },
-        { "picker_brand", "BRAND" },
 
         // ---- custom recipes (CustomRecipes): the Custom group, the questions, the name editor, the messages
         { "group_custom", "Custom" },
@@ -113,6 +112,9 @@ final class TextEn {
         { "action_browse", "browse" },
         { "action_favourite_hold", "fav (hold)" },
         { "action_menu_hold", "menu (hold)" },
+        { "action_compact_menu", "exit / hold menu" },
+        { "action_parameters", "parameters" },
+        { "menu_title", "Settings" },
         { "action_hide", "hide" },
         { "action_exit", "exit" },
         { "action_exit_hold", "exit (hold)" },
@@ -128,7 +130,6 @@ final class TextEn {
         { "action_options_hold", "options (hold)" },
         { "action_type", "type" },
         { "action_delete_char", "delete" },
-        { "keys_notice", "Hold MENU for the menu  ·  trash hides the panel  ·  hold trash to reset" },
 
         // ---- toasts
         { "status_read_failed", "Read failed: %1$s" },
@@ -154,10 +155,10 @@ final class TextEn {
         { "menu_language", "Language" },
         { "menu_language_detail", "Menus and messages — Auto follows the camera" },
         { "menu_reset", "Reset settings" },
-        { "menu_reset_detail", "Back to the camera's factory look" },
+        { "menu_reset_detail", "Restore the standard look; keep image quality" },
         { "menu_about", "About" },
         { "menu_about_detail", "Version, camera, platform" },
-        { "menu_dev", "Developer  >" },
+        { "menu_dev", "Developer" },
         { "menu_dev_detail", "Settings snapshot, read-only check, samples, key logger" },
         { "panel_full", "Full" },
         { "panel_no_keys", "No keys" },
@@ -170,7 +171,12 @@ final class TextEn {
         { "about_platform", "platform" },
         { "about_source", "source" },
         { "menu_review", "Photo review" },
-        { "menu_review_detail", "Read-only JPEG viewer; MENU returns to your recipe" },
+        { "menu_review_detail", "JPEG photo review" },
+        { "review_loading", "Reading..." },
+        { "review_empty", "No JPEG photos" },
+        { "review_read_error", "Cannot read memory card" },
+        { "review_memory", "Not enough memory" },
+        { "review_image_error", "Cannot display this photo" },
 
         // ---- the developer menu and the sample run
         { "dev_title", "DEV TOOLS" },

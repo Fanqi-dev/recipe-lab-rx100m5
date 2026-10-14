@@ -13,16 +13,17 @@ import java.util.List;
 
 /**
  * Modal question: title and explanation (word-wrapped to the box) and two or more option pills that left / right walk.
- * No key legend: the highlighted pill is what centre does, and the hints only confused. Canvas-drawn. Pills that would
+ * A short confirmation/cancel legend follows the choices. Canvas-drawn. Choices that would
  * overflow the box are drawn smaller rather than cut.
  */
 public class PromptView extends View {
-    private static final int ACCENT = 0xFFF2B85C, INK = 0xFF1A1208;
+    private static final int ACCENT = SonyUi.ACCENT, INK = SonyUi.TEXT;
 
     private final Paint bg = new Paint(Paint.ANTI_ALIAS_FLAG), edge = new Paint(Paint.ANTI_ALIAS_FLAG), title = new Paint(Paint.ANTI_ALIAS_FLAG),
             body = new Paint(Paint.ANTI_ALIAS_FLAG), opt = new Paint(Paint.ANTI_ALIAS_FLAG), pill = new Paint(Paint.ANTI_ALIAS_FLAG), note = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF r = new RectF();
     private final float d;
+    private final Legend legend;
     private String titleText = "", bodyText = "", noteText = null;
     private String[] options = new String[0];
     private int selected = 0;
@@ -30,10 +31,11 @@ public class PromptView extends View {
 
     public PromptView(Context c, AttributeSet a) {
         super(c, a);
-        d = c.getResources().getDisplayMetrics().density;
-        bg.setColor(0xF0141414);
-        edge.setColor(0x88F2B85C); edge.setStyle(Paint.Style.STROKE); edge.setStrokeWidth(d);
-        title.setColor(0xFFFFFFFF); title.setTextSize(15 * d); title.setFakeBoldText(true);
+        d = UiScale.of(c);
+        legend = new Legend(d);
+        bg.setColor(SonyUi.BACKGROUND);
+        edge.setColor(SonyUi.RULE); edge.setStyle(Paint.Style.STROKE); edge.setStrokeWidth(d);
+        title.setColor(SonyUi.TEXT); title.setTextSize(14 * d); title.setFakeBoldText(false);
         body.setColor(0xCCFFFFFF); body.setTextSize(12 * d);
         opt.setTextSize(13 * d); opt.setFakeBoldText(true); opt.setTextAlign(Paint.Align.CENTER);
         note.setColor(0x88FFFFFF); note.setTextSize(10 * d);
@@ -41,7 +43,7 @@ public class PromptView extends View {
 
     /** the display language's typeface ({@link UiFont}) */
     public void setTypeface(Typeface tf) {
-        title.setTypeface(tf); body.setTypeface(tf); opt.setTypeface(tf); note.setTypeface(tf);
+        title.setTypeface(tf); body.setTypeface(tf); opt.setTypeface(tf); note.setTypeface(tf); legend.setTypeface(tf);
         requestLayout(); invalidate();
     }
 
@@ -62,7 +64,7 @@ public class PromptView extends View {
         wrap(titleText, title, wd - 2 * pad, titleLines);
         wrap(bodyText, body, wd - 2 * pad, bodyLines);
         float h = 14 * d + titleLines.size() * titleStep() + bodyLines.size() * bodyStep() + 12 * d + 30 * d + 14 * d
-                + (noteText != null ? 14 * d : 0);
+                + (noteText != null ? 14 * d : 0) + legend.height(legend.lines(wd - 2 * pad, Keys.hints(Keys.H_PROMPT, Keys.Caps.UNKNOWN))) + 6 * d;
         setMeasuredDimension((int) wd, (int) h);
     }
 
@@ -93,7 +95,7 @@ public class PromptView extends View {
     @Override
     protected void onDraw(Canvas c) {
         float w = getWidth(), h = getHeight(), pad = 16 * d;
-        r.set(0, 0, w, h); c.drawRoundRect(r, 8 * d, 8 * d, bg); c.drawRoundRect(r, 8 * d, 8 * d, edge);
+        r.set(0, 0, w, h); c.drawRect(r, bg); c.drawRect(r, edge);
         float y = 14 * d + 15 * d;
         for (String l : titleLines) { c.drawText(l, pad, y, title); y += titleStep(); }
         y -= titleStep() - 18 * d;                              // the gap under the title, as before
@@ -113,8 +115,9 @@ public class PromptView extends View {
         for (int i = 0; i < options.length; i++) {
             float pw = opt.measureText(options[i]) + 28 * d * k;
             r.set(x, py, x + pw, py + ph);
-            pill.setColor(i == selected ? ACCENT : 0x33FFFFFF);
-            c.drawRoundRect(r, 5 * d, 5 * d, pill);
+            pill.setColor(i == selected ? SonyUi.SELECTED : SonyUi.HEADER);
+            c.drawRect(r, pill);
+            if (i == selected) { edge.setColor(ACCENT); c.drawRect(r, edge); edge.setColor(SonyUi.RULE); }
             opt.setColor(i == selected ? INK : 0xFFFFFFFF);
             c.drawText(options[i], x + pw / 2, py + ph / 2 - (opt.ascent() + opt.descent()) / 2, opt);
             x += pw + 8 * d * k;
@@ -126,5 +129,7 @@ public class PromptView extends View {
             while (note.measureText(noteText) > avail && ns > 7 * d) { ns -= 0.5f * d; note.setTextSize(ns); }
             c.drawText(noteText, pad, y, note); note.setTextSize(10 * d); y += 14 * d;
         }
+        legend.drawWrapped(c, pad, h - legend.height(legend.lines(w - 2 * pad, Keys.hints(Keys.H_PROMPT, Keys.Caps.UNKNOWN))) - 7 * d,
+                w - 2 * pad, Keys.hints(Keys.H_PROMPT, Keys.Caps.UNKNOWN));
     }
 }
