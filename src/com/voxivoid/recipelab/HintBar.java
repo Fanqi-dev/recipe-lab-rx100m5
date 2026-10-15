@@ -8,7 +8,7 @@ import android.view.View;
 
 /** Key legend under the main panel, for the keys this body has ({@link Keys#hints}), on as many lines as it needs. */
 public class HintBar extends View {
-    public static final int RECIPE = Keys.H_RECIPE, CHIPS = Keys.H_CHIPS, EDIT = Keys.H_EDIT, REVIEW = Keys.H_REVIEW;
+    public static final int RECIPE = Keys.H_RECIPE, CHIPS = Keys.H_CHIPS, EDIT = Keys.H_EDIT;
 
     private final Legend legend;
     private int mode = RECIPE;

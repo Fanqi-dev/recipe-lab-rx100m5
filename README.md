@@ -2,9 +2,11 @@
 
 两个非官方修补测试版，均未经过相机实机验收。
 
+Recipe Lab 1.6.2.7：统一字号、对齐与按键提示；首页保留分类、页码和参数摘要，中央键直接选用；JPEG 回看改用索尼原生图像接口。附源码及本地自动刷新界面预览。尚未实机验收。
+
 | 应用 | 下载 | 主要改动 |
 | --- | --- | --- |
-| Recipe Lab 1.6.2.4 | [APK 与源码](https://github.com/Fanqi-dev/recipe-lab-rx100m5/releases/tag/v1.6.2-rx100m5.4-preview) | Pro-UI 风格蓝色界面、参数卡片、内置 JPEG 回看、移除赞助栏、保留设置写入保护 |
+| Recipe Lab 1.6.2.7 | [APK 与源码](https://github.com/Fanqi-dev/recipe-lab-rx100m5/releases/tag/v1.6.2-rx100m5.7-test) | 统一 UI 规范、紧凑分层首页、直接选用、原生 JPEG 回看；保留设置写入保护 |
 | Sony Time-lapse 3.40 local2 | [APK](https://github.com/Fanqi-dev/recipe-lab-rx100m5/releases/tag/sony-timelapse-3.40-local2-test) | 简短参数提示、计时及取消逻辑修补、回放缓存与刷新优化；保留机内视频合成 |
 
 ## 安装前

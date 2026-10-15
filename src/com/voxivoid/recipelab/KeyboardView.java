@@ -24,6 +24,7 @@ public class KeyboardView extends View {
     private final RectF r = new RectF();
     private final Path path = new Path();
     private final Legend legend;
+    private final UiChrome chrome;
     private final float d;
     private String title = "";
     private NameEntry entry = NameEntry.blank("");
@@ -32,14 +33,14 @@ public class KeyboardView extends View {
     public KeyboardView(Context c, AttributeSet a) {
         super(c, a);
         d = UiScale.of(c);
-        legend = new Legend(d);
+        legend = new Legend(d);chrome=new UiChrome(d);
         bg.setColor(SonyUi.BACKGROUND);
-        head.setColor(SonyUi.TEXT); head.setTextSize(14 * d); head.setFakeBoldText(false);
-        field.setTextSize(17 * d); field.setFakeBoldText(true);
-        box.setColor(ACCENT); box.setStyle(Paint.Style.STROKE); box.setStrokeWidth(1.5f * d);
-        err.setColor(0xFFFF8A65); err.setTextSize(10 * d);
-        label.setTextSize(13 * d); label.setFakeBoldText(true); label.setTextAlign(Paint.Align.CENTER);
-        glyph.setStyle(Paint.Style.STROKE); glyph.setStrokeWidth(1.5f * d);
+        head.setColor(SonyUi.TEXT); head.setTextSize(SonyUi.TITLE * d); head.setFakeBoldText(false);
+        field.setTextSize(SonyUi.INPUT * d); field.setFakeBoldText(false);
+        box.setColor(ACCENT); box.setStyle(Paint.Style.STROKE); box.setStrokeWidth(SonyUi.ICON_STROKE * d);
+        err.setColor(SonyUi.ATTENTION); err.setTextSize(SonyUi.SECONDARY * d);
+        label.setTextSize(SonyUi.BODY * d); label.setFakeBoldText(false); label.setTextAlign(Paint.Align.CENTER);
+        glyph.setStyle(Paint.Style.STROKE); glyph.setStrokeWidth(SonyUi.ICON_STROKE * d);
         rule.setColor(SonyUi.RULE);
     }
 
@@ -56,18 +57,17 @@ public class KeyboardView extends View {
 
     @Override
     protected void onDraw(Canvas c) {
-        float w = getWidth(), h = getHeight(), pad = 16 * d;
-        float legTop = h - pad - legend.height(legend.lines(w - 2 * pad, hints)) + 2 * d;   // the legend, on as many lines as it needs
+        float w = getWidth(), h = getHeight(), pad = SonyUi.PAGE_PAD * d;
+        float legTop = chrome.footerTop(w,h,legend,hints);
         c.drawRect(0, 0, w, h, bg);
-        c.drawText(CanvasText.fit(head, title, w - 2 * pad), pad, 23 * d, head);
-        float top = 32 * d;
-        c.drawLine(pad, top, w - pad, top, rule);
+        chrome.header(c,w,title,head);
+        float top = SonyUi.HEADER_HEIGHT * d;
 
         // ---- the field
         float fy = top + 10 * d, fh = 32 * d;
         r.set(pad, fy, w - pad, fy + fh); c.drawRect(r, box);
         String text = CanvasText.fit(field, entry.shown(), w - 2 * pad - 24 * d);
-        field.setColor(entry.isPlaceholder() ? 0x66FFFFFF : 0xFFFFFFFF);
+        field.setColor(entry.isPlaceholder() ? SonyUi.MUTED : SonyUi.TEXT);
         float base = fy + fh / 2 - (field.ascent() + field.descent()) / 2, tx = pad + 10 * d;
         c.drawText(text, tx, base, field);
         if (!entry.isPlaceholder()) {                           // the cursor after what is typed
@@ -80,7 +80,7 @@ public class KeyboardView extends View {
 
         // ---- the keyboard
         float gTop = ey + 8 * d, gBottom = legTop - 10 * d, rows = NameEntry.rows();
-        float rh = Math.max(1, Math.min(34 * d, (gBottom - gTop) / rows)), gw = w - 2 * pad, gap = 3 * d;
+        float rh = Math.max(1, Math.min(34 * d, (gBottom - gTop) / rows)), gw = w - 2 * pad, gap = 4 * d;
         for (int row = 0; row < rows; row++) {
             int n = NameEntry.cols(row);
             float cw = gw / n, y = gTop + row * rh;
@@ -88,16 +88,15 @@ public class KeyboardView extends View {
                 boolean on = row == entry.row() && col == entry.col();
                 float x = pad + col * cw;
                 r.set(x + gap / 2, y + gap / 2, x + cw - gap / 2, y + rh - gap / 2);
-                cell.setColor(on ? ACCENT : 0x26FFFFFF);
-                c.drawRect(r, cell);
-                int ink = on ? INK : 0xFFFFFFFF;
+                cell.setColor(SonyUi.HEADER);
+                if(on)chrome.selection(c,r.left,r.top,r.right,r.bottom,true);else c.drawRect(r,cell);
+                int ink = SonyUi.TEXT;
                 label.setColor(ink); glyph.setColor(ink);
                 drawCell(c, NameEntry.cell(row, col), r.centerX(), r.centerY());
             }
         }
 
-        c.drawLine(pad, legTop - 2 * d, w - pad, legTop - 2 * d, rule);
-        legend.drawWrapped(c, pad, legTop, w - 2 * pad, hints);
+        chrome.footer(c,w,legTop,legend,hints);
     }
 
     private void drawCell(Canvas c, char k, float cx, float cy) {

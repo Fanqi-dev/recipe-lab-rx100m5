@@ -24,14 +24,14 @@ public class Legend {
 
     public Legend(float density) {
         d = density;
-        fill.setColor(0xCCFFFFFF); fill.setStyle(Paint.Style.FILL);
-        stroke.setColor(0xCCFFFFFF); stroke.setStyle(Paint.Style.STROKE);
+        fill.setColor(SonyUi.MUTED); fill.setStyle(Paint.Style.FILL);
+        stroke.setColor(SonyUi.MUTED); stroke.setStyle(Paint.Style.STROKE);
         text.setColor(SonyUi.MUTED);
-        keyText.setColor(0xCCFFFFFF); keyText.setTextAlign(Paint.Align.CENTER); keyText.setFakeBoldText(true);
+        keyText.setColor(SonyUi.TEXT); keyText.setTextAlign(Paint.Align.CENTER); keyText.setFakeBoldText(false);
     }
 
-    /** the labels' typeface: the display language's ({@link UiFont}); the key caps keep the camera's */
-    public void setTypeface(Typeface tf) { text.setTypeface(tf); }
+    /** Labels and key lettering share the display face; keys differ by size, not by a second alphabet. */
+    public void setTypeface(Typeface tf) { text.setTypeface(tf); keyText.setTypeface(tf); }
 
     private static final Path STAR = new Path();
 
@@ -64,13 +64,13 @@ public class Legend {
     public static final int HEART_PINK = 0xFFDB61A2;
 
     /** natural height for a legend row at scale 1 */
-    public float height() { return 16 * d; }
+    public float height() { return 18 * d; }
 
     /** the height of a legend of {@code lines} lines */
     public float height(int lines) { return height() + Math.max(0, lines - 1) * LINE_STEP * d; }
 
     /** distance between the centres of two wrapped lines, in dp */
-    private static final float LINE_STEP = 18, WRAP_GAP = 8;
+    private static final float LINE_STEP = 20, WRAP_GAP = SonyUi.ITEM_GAP;
 
     /** how many lines a row needs in {@code width} at full size */
     public int lines(float width, Keys.Hints h) { return lineCounts(width, h).length; }
@@ -103,12 +103,10 @@ public class Legend {
     public float draw(Canvas c, float x, float cy, float width, int[] icons, String[] labels) { return draw(c, x, cy, width, icons, null, labels); }
 
     private float draw(Canvas c, float x, float cy, float width, int[] icons, int[] alts, String[] labels) {
-        float scale = 1f, gap = 14 * d, minGap = 5 * d;
-        float need = measure(scale, minGap, icons, alts, labels);
-        if (need > width) scale = Math.max(0.6f, width / need);          // shrink everything, gaps stay minimal
-        float used = measure(scale, minGap, icons, alts, labels);
-        if (used < width) gap = Math.min(14 * d, minGap + (width - used) / Math.max(1, icons.length - 1));
-        else gap = minGap;
+        float scale = 1f, gap = SonyUi.ITEM_GAP * d;
+        float need = measure(scale, gap, icons, alts, labels);
+        // Normal legends wrap instead of changing font/gap size between screens.
+        if (need > width && icons.length == 1) scale = Math.min(1f,width/need);
         setScale(scale);
         float s = 6 * d * scale, ty = cy - (text.ascent() + text.descent()) / 2f, x0 = x;
         for (int i = 0; i < icons.length; i++) {
@@ -139,9 +137,9 @@ public class Legend {
     }
 
     private void setScale(float k) {
-        text.setTextSize(10 * d * k);
-        keyText.setTextSize(6.5f * d * k);
-        stroke.setStrokeWidth(1.2f * d * k);
+        text.setTextSize(SonyUi.SECONDARY * d * k);
+        keyText.setTextSize(SonyUi.KEY_LETTER * d * k);
+        stroke.setStrokeWidth(SonyUi.ICON_STROKE * d * k);
     }
 
     private void tri(Canvas c, float x1, float y1, float x2, float y2, float x3, float y3) {
@@ -149,7 +147,7 @@ public class Legend {
     }
 
     private float keyLabel(Canvas c, float x, float cy, float s, float w, String label) {
-        rect.set(x, cy - s * 0.8f, x + w, cy + s * 0.8f);
+        rect.set(x, cy - s, x + w, cy + s);
         c.drawRoundRect(rect, 2 * d, 2 * d, stroke);
         c.drawText(label, x + w / 2, cy - (keyText.ascent() + keyText.descent()) / 2f, keyText);
         return w;
@@ -200,7 +198,15 @@ public class Legend {
                 c.drawCircle(cx, cy, s * 0.4f, fill);
                 return 2 * s;
             }
-            case FN: return keyLabel(c, x, cy, s, 2.0f * s, "Fn");
+            case Keys.I_MOVE: {
+                float cx=x+s;
+                tri(c,cx,cy-s,cx-a,cy-s+a,cx+a,cy-s+a);
+                tri(c,cx,cy+s,cx-a,cy+s-a,cx+a,cy+s-a);
+                tri(c,x,cy,x+a,cy-a,x+a,cy+a);
+                tri(c,x+2*s,cy,x+2*s-a,cy-a,x+2*s-a,cy+a);
+                return 2*s;
+            }
+            case FN: return keyLabel(c, x, cy, s, 16*d*k, "Fn");
             case TRASH: {                                          // bin: lid + body
                 float w = 1.6f * s, cx = x + w / 2, top = cy - s * 0.9f, bot = cy + s * 0.9f, u = d * k;
                 c.drawLine(x, top + 2 * u, x + w, top + 2 * u, stroke);
@@ -210,13 +216,7 @@ public class Legend {
                 c.drawLine(cx, top + 5 * u, cx, bot - 3 * u, stroke);
                 return w;
             }
-            case MENU: {                                           // rounded key with three lines
-                float u = d * k;
-                rect.set(x, cy - s * 0.8f, x + 2 * s, cy + s * 0.8f);
-                c.drawRoundRect(rect, 2 * u, 2 * u, stroke);
-                for (int i = -1; i <= 1; i++) c.drawLine(x + 3.5f * u, cy + i * 3 * u, x + 2 * s - 3.5f * u, cy + i * 3 * u, stroke);
-                return 2 * s;
-            }
+            case MENU: return keyLabel(c,x,cy,s,28*d*k,"MENU");
         }
         return 0;
     }

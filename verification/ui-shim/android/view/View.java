@@ -3,6 +3,7 @@ public class View {
     private int w=640,h=480;
     public View(android.content.Context c, android.util.AttributeSet a) {}
     public void invalidate() {} public void requestLayout() {}
+    public void setContentDescription(CharSequence text) {}
     public int getWidth() { return w; } public int getHeight() { return h; }
     public void setMeasuredDimension(int width,int height) { w=width; h=height; }
     protected void onMeasure(int w,int h) { setMeasuredDimension(MeasureSpec.getSize(w),MeasureSpec.getSize(h)); }

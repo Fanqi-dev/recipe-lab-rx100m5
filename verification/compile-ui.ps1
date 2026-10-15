@@ -4,7 +4,7 @@ $audit = Split-Path $project -Parent
 $java = Join-Path $audit 'tools/zulu21/zulu21.52.203-ca-jdk21.0.12.1-win_x64/bin'
 $android = Join-Path $audit 'tools/platform28/android-9/android.jar'
 $bt = Join-Path $audit 'tools/build-tools30/android-11'
-$build = Join-Path $project 'out-safe/blue-compile'
+$build = Join-Path $project 'out-safe/native-review-compile-rx6'
 foreach($dir in 'gen','classes','dex') { New-Item -ItemType Directory -Force "$build/$dir" | Out-Null }
 function Run([string]$program,[string[]]$arguments) { & $program @arguments; if($LASTEXITCODE -ne 0){throw 'UI compile failed'} }
 Run "$bt/aapt.exe" @('package','-f','-m','--custom-package','com.voxivoid.recipelab','-J',"$build/gen",'-M',"$project/AndroidManifest.xml",'-S',"$project/res",'-A',"$project/assets",'-I',$android)

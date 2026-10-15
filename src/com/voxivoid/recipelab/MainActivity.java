@@ -63,11 +63,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private TextView name, nameOriginal, badge, editedBadge, tag, count, meta, mini, toast;
     private StarView fav;
     private PromptView prompt;
-    private int promptSel = 0, promptKind = P_QUALITY; private boolean promptOpen = false;
+    private int promptSel = 0, promptKind = P_RESET; private boolean promptOpen = false;
     /**
-     * the questions the prompt asks: quality change, reset, discard a recipe's edits, a custom recipe's options, delete it
+     * Destructive actions still ask: reset, discard edits, custom options and delete.
      */
-    private static final int P_QUALITY = 0, P_RESET = 1, P_DISCARD = 2, P_OPTIONS = 3, P_DELETE = 4;
+    private static final int P_RESET = 1, P_DISCARD = 2, P_OPTIONS = 3, P_DELETE = 4;
     private Runnable afterDiscard;                               // what the discard question goes on to do when answered Discard
     // the name editor, and what its OK does: keep a recipe's edits as a copy and store it, keep the camera's settings, rename
     private KeyboardView keyboard;
@@ -89,8 +89,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private static final int PAGE_ROWS = 0, PAGE_ABOUT = 1;
     private Keys.Caps caps = Keys.Caps.UNKNOWN;                 // the shortcut keys this body reports (KeyProbe)
     private HintBar hints;
-    private PhotoReviewView photoReview;
-    private int reviewCloseScan = -1, reviewCloseKey = -1;
+    private SonyPhotoReview photoReview;
+    private boolean activityResumed,reviewNeedsReload,reviewResourceFailed;
+    private int reviewCloseScan=-1,reviewCloseKey=-1;
     private LinearLayout chips;
     private final TextView[] chipLabel = new TextView[N], chipValue = new TextView[N];
     private final View[] chip = new View[N];
@@ -147,6 +148,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         setContentView(R.layout.main);
+        UiFont.cameraLayout(findViewById(android.R.id.content));
         prefs = getPreferences(MODE_PRIVATE);
         recipe = Math.max(0, Math.min(Recipes.ALL.length - 1, prefs.getInt("recipe", 0)));
         favStored = prefs.getString("favourites", "");
@@ -178,16 +180,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         buildActions();
         applyLanguage();
         caps = KeyProbe.caps();
-        hints.setCaps(caps); picker.setCaps(caps); live.setCaps(caps);
+        hints.setCaps(caps); picker.setCaps(caps);
         SurfaceView sv = (SurfaceView) findViewById(R.id.surface);
         holder = sv.getHolder();
         holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-        photoReview = new PhotoReviewView(this);
-        ((FrameLayout) findViewById(android.R.id.content)).addView(photoReview, new FrameLayout.LayoutParams(-1, -1));
-        photoReview.setTypeface(UiFont.of(this, Lang.current()));
+        photoReview=new SonyPhotoReview(this,new SonyPhotoReview.Listener(){public void closed(boolean released){resumeAfterReview(released);}});
+        ((FrameLayout)findViewById(android.R.id.content)).addView(photoReview,new FrameLayout.LayoutParams(-1,-1));
+        photoReview.setTypeface(UiFont.of(this,Lang.current()));
     }
 
-    private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
+    private int dp(float v) { return (int) (v * UiScale.of(this) + 0.5f); }
 
     private void buildChips() {
         for (int i : ORDER) {
@@ -196,10 +198,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             c.setGravity(Gravity.CENTER_HORIZONTAL);
             c.setPadding(dp(8), dp(3), dp(8), dp(4));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            lp.rightMargin = dp(5);
+            lp.rightMargin = dp(SonyUi.ITEM_GAP);
             c.setLayoutParams(lp);
-            TextView l = new TextView(this); l.setTextSize(9);                    // its text is set by render(), in the display language
-            TextView v = new TextView(this); v.setTextSize(13); v.setTypeface(Typeface.DEFAULT_BOLD); v.setSingleLine(true);
+            TextView l = new TextView(this); UiFont.text(l,SonyUi.SECONDARY);
+            TextView v = new TextView(this); UiFont.text(v,SonyUi.BODY); v.setSingleLine(true);
             c.addView(l); c.addView(v);
             chips.addView(c);
             chip[i] = c; chipLabel[i] = l; chipValue[i] = v;
@@ -210,10 +212,10 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private void buildActions() {
         for (int i = 0; i < actionBtn.length; i++) {
             TextView b = new TextView(this);
-            b.setTextSize(12); b.setTypeface(Typeface.DEFAULT_BOLD); b.setSingleLine(true);
+            UiFont.text(b,SonyUi.BODY); b.setSingleLine(true);
             b.setPadding(dp(12), dp(4), dp(12), dp(4));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            lp.rightMargin = dp(6);
+            lp.rightMargin = dp(SonyUi.ITEM_GAP);
             b.setLayoutParams(lp);
             actionsRow.addView(b);
             actionBtn[i] = b;
@@ -226,22 +228,38 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Lang.use(Lang.resolve(langChoice, l == null ? null : l.getLanguage(), l == null ? null : l.getCountry()));
         Typeface tf = UiFont.of(this, Lang.current());
         UiFont.apply(findViewById(android.R.id.content), tf);
+        UiFont.text(name,SonyUi.TITLE);name.setShadowLayer(0,0,0,0);
+        UiFont.text(nameOriginal,SonyUi.SECONDARY);UiFont.text(count,SonyUi.SECONDARY);UiFont.text(meta,SonyUi.SECONDARY);
+        UiFont.text(badge,SonyUi.SECONDARY);UiFont.text(editedBadge,SonyUi.SECONDARY);UiFont.text(tag,SonyUi.SECONDARY);
+        UiFont.text(mini,SonyUi.BODY);UiFont.text(toast,SonyUi.SECONDARY);
+        badge.setGravity(Gravity.CENTER);editedBadge.setGravity(Gravity.CENTER);tag.setGravity(Gravity.CENTER);
+        badge.setMinWidth((int)Math.ceil(CanvasText.statusWidth(badge.getPaint(),UiScale.of(this))));
         picker.setTypeface(tf); prompt.setTypeface(tf); menu.setTypeface(tf); hints.setTypeface(tf); keyboard.setTypeface(tf); live.setTypeface(tf); parameterCard.setTypeface(tf);
-        if (photoReview != null) photoReview.setTypeface(tf);
+        if(photoReview!=null)photoReview.setTypeface(tf);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Sony's shooting-session contract: playback is handled here, not a pull-back-to-native key.
+        activityResumed=true;
+        if(photoReview!=null&&photoReview.isOpen()){reviewNeedsReload=true;photoReview.close();return;}
+        startCameraSession();
+    }
+
+    private void registerSession(boolean review){
         Intent appInfo = new Intent(SonyAppSession.ACTION);
         appInfo.putExtra("package_name", getComponentName().getPackageName());
         appInfo.putExtra("class_name", getComponentName().getClassName());
-        appInfo.putExtra("large_category", "CATEGORY_REC");
-        appInfo.putExtra("small_category", "STILL");
+        appInfo.putExtra("large_category", review?"CATEGORY_PB":"CATEGORY_REC");
+        appInfo.putExtra("small_category", review?"SINGLE":"STILL");
         appInfo.putExtra("pullingback_key", SonyAppSession.pullingBackKeys());
         appInfo.putExtra("resume_key", SonyAppSession.resumeKeys());
         sendBroadcast(appInfo);
+    }
+
+    private void startCameraSession(){
+        if(reviewResourceFailed){previewOk=false;safetyStop("Review resources not released; restart camera");render();return;}
+        reviewNeedsReload=false;registerSession(false);
         settingsReady = false;
         safeSettings = new SafeSettings(new SafeSettings.Store() {
             public byte[] read(int id) throws Exception { return NativeBackup.read(id); }
@@ -274,8 +292,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     protected void onPause() {
         super.onPause();
-        if (photoReview != null) photoReview.close();
-        reviewCloseScan = reviewCloseKey = -1;
+        activityResumed=false;
+        if(photoReview!=null&&photoReview.isOpen()){reviewNeedsReload=true;photoReview.close();}
+        reviewCloseScan=reviewCloseKey=-1;
         stopRun(false);                                          // a run cannot outlive the camera it shoots with
         closeMenu();
         closeName();
@@ -300,23 +319,42 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         cameraEx = null; camera = null;
     }
 
-    @Override protected void onDestroy() {
-        if (photoReview != null) photoReview.dispose();
-        super.onDestroy();
+    @Override protected void onDestroy(){if(photoReview!=null)photoReview.dispose();super.onDestroy();}
+
+    private void openPhotos(){
+        if(running||promptOpen||nameOpen){showToast(Lang.t("review_busy"),2500);return;}
+        if(!settingsReady||camera==null||verifiedPreview==null){showToast(Lang.t("review_unavailable"),3000);return;}
+        try{
+            photoReview.prepare(); // Confirm APIs before giving up the live preview.
+        }catch(Throwable failure){showToast(Lang.t("review_unavailable"),3000);return;}
+        closeMenu();handler.removeCallbacks(enterHold);handler.removeCallbacks(menuHold);handler.removeCallbacks(trashHold);
+        enter.reset();menuKeyHold.reset();trash.reset();swallowMenuUp=false;
+        try{
+            // Camera HAL can persist live WB/EV on release: restore the verified stored look first.
+            Camera.Parameters p=camera.getParameters();
+            for(Map.Entry<String,String> e:verifiedPreview.entrySet())p.set(e.getKey(),e.getValue());
+            camera.setParameters(p);camera.stopPreview();holder.removeCallback(this);
+            cameraEx.getClass().getMethod("release").invoke(cameraEx);cameraEx=null;camera=null;
+        }catch(Throwable failure){safetyStop("Review transition failed; restart app");render();return;}
+        registerSession(true);photoReview.open();
     }
 
-    private void openPhotos() {
-        if (running) { showToast("Stop the sample run before photo review", 3000); return; }
-        if (logging) stopLogger();
-        closeMenu();
-        handler.removeCallbacks(enterHold); handler.removeCallbacks(menuHold); handler.removeCallbacks(trashHold);
-        enter.reset(); menuKeyHold.reset(); trash.reset(); swallowMenuUp = false;
-        File card = null;
-        try {
-            String state = Environment.getExternalStorageState();
-            if (Environment.MEDIA_MOUNTED.equals(state) || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) card = Environment.getExternalStorageDirectory();
-        } catch (Exception ignored) { }
-        photoReview.open(card); // same Activity; staged edits and selection stay in memory
+    private void resumeAfterReview(boolean released){
+        if(!released){reviewResourceFailed=true;previewOk=false;safetyStop("Review resources not released; restart camera");if(activityResumed)render();return;}
+        if(!activityResumed)return;
+        if(reviewNeedsReload){startCameraSession();return;}
+        registerSession(false);
+        int[] staged=edit.clone();load(); // Revalidate settings/card changes without losing the staged recipe.
+        if(!settingsReady){render();return;}
+        System.arraycopy(staged,0,edit,0,N);edit[R_QUAL]=cur[R_QUAL];
+        try{
+            Class<?> cx=Class.forName("com.sony.scalar.hardware.CameraEx");
+            cameraEx=cx.getMethod("open",int.class,Class.forName("com.sony.scalar.hardware.CameraEx$OpenOptions")).invoke(null,0,null);
+            camera=(Camera)cx.getMethod("getNormalCamera").invoke(cameraEx);
+            originalWhiteBalance=camera.getParameters().get("whitebalance");verifiedPreview=previewValues(cur);
+            holder.addCallback(this);camera.setPreviewDisplay(holder);camera.startPreview();previewOk=true;
+        }catch(Throwable failure){previewOk=false;safetyStop("Preview reopen failed; restart app");render();return;}
+        applyPreview();render();
     }
 
     public void surfaceCreated(SurfaceHolder h) {
@@ -389,8 +427,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     private boolean dirty() { for (int i = 1; i < N; i++) if (rowDirty(i)) return true; return false; }
     private boolean rowVisible(int i) { return Params.rowVisible(i, edit); }
 
-    private void writeAll() { writeAll(false); }
-
     /** the attribute of every slot a pending write touches; -1 where the camera would not answer */
     private int[] attrsOf(List<Params.Write> ws) {
         int[] attrs = new int[ws.size()];
@@ -400,33 +436,40 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         return attrs;
     }
 
-    private void writeAll(boolean confirmed) {
-        if (!settingsReady || safeSettings == null) { showToast("STOP: " + safetyError, 0); return; }
-        if (edit[R_QUAL] != cur[R_QUAL]) { showToast("Set Quality in camera MENU; restart this app", 0); return; }
-        if (edit[R_PE] != 0 && cur[R_QUAL] <= Q_RAWJPG) { showToast("JPEG-only effect. Set JPEG in camera MENU; restart this app", 0); return; }
-        if (camera == null || !previewOk) { showToast("Preview unavailable; not applied. " + previewErr, 0); return; }
-        if (!dirty()) { showToast(Lang.t("status_already_picked"), 2500); return; }
-        if (!confirmed) { openPrompt(P_QUALITY, Rx100M5Policy.CONFIRM_DEFAULT); return; }
+    /** One deliberate short ENTER applies; all transaction/preflight/read-back guards remain. */
+    private boolean writeAll() {
+        if (!settingsReady || safeSettings == null) { showToast("STOP: " + safetyError, 0); return false; }
+        if (edit[R_QUAL] != cur[R_QUAL]) { showToast("Set Quality in camera MENU; restart this app", 0); return false; }
+        if (edit[R_PE] != 0 && cur[R_QUAL] <= Q_RAWJPG) { showToast("JPEG-only effect. Set JPEG in camera MENU; restart this app", 0); return false; }
+        if (camera == null || !previewOk) { showToast("Preview unavailable; not applied. " + previewErr, 0); return false; }
+        if (!dirty()) { rememberReopen(); rememberAppliedEdit(); collapseApplied(); return true; }
         int storedSub = storedSub();
-        int n = Params.dirtyRows(cur, edit, storedSub);
         List<Params.Write> ws = Params.writes(cur, edit, storedSub);
         List<Integer> locked = Params.lockedFrom(ws, attrsOf(ws));   // the slots backup protection would refuse (issue #19)
-        if (!locked.isEmpty()) { showToast(Params.lockedMessage(locked), 0); return; }   // nothing written, so nothing half-applied
+        if (!locked.isEmpty()) { showToast(Params.lockedMessage(locked), 0); return false; }   // nothing written, so nothing half-applied
 
         int[] wanted = edit.clone();
         try { safeSettings.apply(cameraModel(), ws); }
         catch (SafeSettings.Failure e) {
             if (e.blocked) safetyStop(e.getMessage());
             else { load(); if (settingsReady) applyPreview(); }
-            showToast(e.getMessage(), 0); render(); return;
+            showToast(e.getMessage(), 0); render(); return false;
         }
         load();
-        if (!settingsReady) { render(); return; }
-        for (int i = 1; i < N; i++) if (Params.rowDirty(i, cur, wanted, storedSub())) { safetyStop("Read-back mismatch; stop and check camera menus"); render(); return; }
+        if (!settingsReady) { render(); return false; }
+        for (int i = 1; i < N; i++) if (Params.rowDirty(i, cur, wanted, storedSub())) { safetyStop("Read-back mismatch; stop and check camera menus"); render(); return false; }
         if (Params.redefinesBaseQuality(library.get(recipe), edit[R_QUAL])) prefs.edit().putInt("baseQuality", edit[R_QUAL]).commit();
         verifiedPreview = previewValues(cur);
         rememberReopen(); rememberAppliedEdit(); applyPreview();
-        showToast(previewOk ? Lang.t(n == 1 ? "status_picked_one" : "status_picked_many", n) : "Stored; preview unavailable. MENU: Exit", previewOk ? 5000 : 0); render();
+        if (!previewOk) { showToast("Stored; preview unavailable. MENU: Exit", 0); render(); return false; }
+        collapseApplied(); return true;
+    }
+
+    private void collapseApplied() {
+        // Persistent one-line name + ACTIVE badge replaces the old top toast and large panel.
+        overlay = fullPanel(); row = 0; focus = false; onActions = false;
+        handler.removeCallbacks(hideToast); toast.setVisibility(View.GONE);
+        render();
     }
 
     /**
@@ -479,14 +522,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             case P_DISCARD: prompt.set(CustomRecipes.discardTitle(Recipes.displayName(r)), CustomRecipes.discardBody(), CustomRecipes.discardOptions(), promptSel, null); break;
             case P_OPTIONS: prompt.set(r.name, CustomRecipes.optionsBody(library.entry(recipe).file), CustomRecipes.options(), promptSel, null); break;
             case P_DELETE: prompt.set(CustomRecipes.deleteTitle(r.name), CustomRecipes.deleteBody(library.entry(recipe).file), CustomRecipes.deleteOptions(), promptSel, null); break;
-            default: {
-                String[] q = Params.qualityPrompt(cur, edit);
-                String[] opts = { Lang.t("button_accept"), Lang.t("button_cancel") };
-                String details = Recipes.displayName(r) + "\nQUALITY: KEEP (camera MENU)"
-                        + "\nEV: " + Recipes.evLabel(cur[R_EV]) + " -> " + Recipes.evLabel(edit[R_EV])
-                        + "\nPP: " + (cur[R_PP] == 0 ? "OFF" : "ON") + " -> OFF";
-                prompt.set("RX100M5 - APPLY", details, opts, promptSel, qualityPersistent() ? null : Lang.t("quality_slot_note"));
-            }
         }
         prompt.setVisibility(View.VISIBLE);
     }
@@ -527,7 +562,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 else if (promptSel == CustomRecipes.OPT_DELETE) openPrompt(P_DELETE, CustomRecipes.DELETE_DEFAULT);
                 return;
             case P_DELETE: if (promptSel == 0) deleteCustom(); return;
-            default: if (promptSel == 0) writeAll(true); else showToast(Lang.t("status_not_picked"), 2000);   // cancel: recipe stays previewed only
         }
     }
 
@@ -1006,14 +1040,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         openPrompt(P_DISCARD, CustomRecipes.DISCARD_DEFAULT);
     }
 
-    /**
-     * The centre button on the recipe line: pick it. With edits on it, that means going back to the recipe, so ask first —
-     * Discard puts its own values back and picks them; saving, copying and applying edits are the buttons under the chips.
-     */
+    /** The centre button applies the staged look, including edits; saving a file stays a separate action. */
     private void pick() {
-        if (!edited()) { writeAll(); return; }
-        afterDiscard = new Runnable() { public void run() { stageRecipe(); applyPreview(); writeAll(); } };
-        openPrompt(P_DISCARD, CustomRecipes.DISCARD_DEFAULT);
+        writeAll();
     }
 
     /** the edit buttons that make sense now: none without edits, or without the full panel to show them on */
@@ -1091,7 +1120,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         Recipes.Recipe r = library.get(recipe);
         boolean dirty = dirty();
         String pos = library.position(recipe);
-        String grp = Recipes.groupLabel(r.group).toUpperCase();
+        String grp = Recipes.groupLabel(r.group);
         live.setVisibility(View.GONE);
         parameterCard.setVisibility(View.GONE);
         picker.setVisibility(overlay == OV_BROWSER ? View.VISIBLE : View.GONE);
@@ -1104,16 +1133,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         }
         if (panelUp(overlay) && SonyUi.compactPanel(settingsReady && previewOk,row,onActions,!warning.isEmpty())) {
             panel.setVisibility(View.GONE); mini.setVisibility(View.GONE);
-            String wb = edit[R_WBMODE] == WB_KELVIN ? Params.fmt(R_KELVIN,edit[R_KELVIN],edit) : Params.fmt(R_WBMODE,edit[R_WBMODE],edit);
-            int look = edit[R_PE] == 0 ? R_STYLE : R_PE;
-            String summary = Params.fmt(look,edit[look],edit) + "   WB " + wb + "   EV " + Params.fmt(R_EV,edit[R_EV],edit);
-            live.set(Recipes.displayName(r),grp,pos,summary,!dirty,edited(),overlay == OV_QUIET);
+            live.set(Recipes.displayName(r),Recipes.groupLabel(r.group),pos,LiveRecipeView.summary(edit),
+                    !dirty,edited(),caps,overlay != OV_QUIET);
             live.setVisibility(View.VISIBLE); return;
         }
         if (panelUp(overlay)) {
             panel.setVisibility(View.VISIBLE); mini.setVisibility(View.GONE);
             name.setText(Recipes.displayName(r));
-            name.setTextColor(row == 0 ? ACCENT : WHITE);
+            name.setTextColor(WHITE);
             String original = Recipes.originalName(r);            // a translated name keeps the canonical one under it
             nameOriginal.setText(original == null ? "" : original);
             nameOriginal.setVisibility(View.GONE); // canonical name is available in the focused browser detail
@@ -1125,10 +1152,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             // two questions, two badges: does the camera have what you see (ACTIVE / PREVIEW), and is it the recipe as it was (EDITED)
             if (dirty) { badge.setText(Lang.t("state_preview")); badge.setBackgroundResource(R.drawable.badge_warn); }
             else { badge.setText(Lang.t("state_active")); badge.setBackgroundResource(R.drawable.badge_ok); }
+            badge.setTextColor(SonyUi.statusText(!dirty));
             editedBadge.setText(Lang.t("state_edited"));
+            editedBadge.setTextColor(SonyUi.ATTENTION);
             editedBadge.setVisibility(edited() ? View.VISIBLE : View.GONE);
             String m = Params.metaLine(edit, previewOk ? null : previewErr);   // warnings only: the values are on the chips
             meta.setText(m);
+            meta.setTextColor(SonyUi.ATTENTION);
             meta.setVisibility(m.isEmpty() ? View.GONE : View.VISIBLE);
             int[] acts = actions();
             settleActions(acts.length);
@@ -1139,15 +1169,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 actionBtn[i].setVisibility(View.VISIBLE);
                 actionBtn[i].setText(CustomRecipes.editLabel(acts[i]));
                 actionBtn[i].setBackgroundResource(on ? R.drawable.chip_sel : R.drawable.chip);
-                actionBtn[i].setTextColor(on ? INK : WHITE);
+                actionBtn[i].setTextColor(WHITE);
             }
             for (int i : ORDER) {
                 chip[i].setVisibility(rowVisible(i) ? View.VISIBLE : View.GONE);
                 boolean sel = i == row && !onActions, ch = rowDirty(i), foc = sel && focus;
                 chip[i].setBackgroundResource(foc ? R.drawable.chip_sel : sel ? R.drawable.chip_hi : R.drawable.chip);
                 chipLabel[i].setText(Params.rowName(i));
-                chipLabel[i].setTextColor(foc ? INK : sel ? ACCENT : DIM);
-                chipValue[i].setTextColor(foc ? INK : ch ? ACCENT : WHITE);
+                chipLabel[i].setTextColor(sel ? WHITE : DIM);
+                chipValue[i].setTextColor(ch ? SonyUi.ATTENTION : WHITE);
                 chipValue[i].setText(i == R_QUAL ? "KEEP" : Params.fmt(i, edit[i], edit));
             }
             if (row == 0) chipScroll.post(new Runnable() { public void run() { chipScroll.smoothScrollTo(0, 0); } });
@@ -1163,6 +1193,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         } else if (overlay == OV_PILL) {
             panel.setVisibility(View.GONE); mini.setVisibility(View.VISIBLE);
             mini.setText(Params.miniLine(r, pos, cur, edit, dirty));
+            mini.setTextColor(dirty ? DIM : SonyUi.ENABLED);
         } else {
             panel.setVisibility(View.GONE); mini.setVisibility(View.GONE);
         }
@@ -1234,11 +1265,9 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         browserCol = COL_RECIPES; render(); return true;
     }
 
-    /** the centre button on a recipe in the browser: close it, leaving that recipe previewed */
+    /** A short centre press selects AND applies. On failure keep the browser and show the error. */
     private void pickInBrowser() {
-        if (!Favourites.key(recipe, library).equals(prefs.getString("appliedRecipe", null))) forgetAppliedEdit();   // a new one chosen
-        rememberReopen();                                        // a recipe chosen in the list is where the app reopens
-        openBrowser(false); showToast(Lang.t("status_recipe_previewed", Recipes.displayName(library.get(recipe))), 3000);
+        writeAll();
     }
 
     /** the reset question answered Reset: the factory look, stored — the same store as a centre press */
@@ -1340,17 +1369,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e) {
         int sc = e.getScanCode();
-        if (photoReview.isOpen()) {
-            if (Keys.reviewCloses(sc, keyCode == KeyEvent.KEYCODE_BACK)) {
-                if (e.getRepeatCount() == 0) {
-                    photoReview.close(); reviewCloseScan = sc; reviewCloseKey = keyCode; render();
-                }
-            } else if (sc == K_LEFT || sc == K_RIGHT || turn(sc) != 0) {
-                photoReview.step(sc == K_LEFT ? -1 : sc == K_RIGHT ? 1 : turn(sc));
-            }
-            return true; // no capture, writes, reset, delete or favourite behind the viewer
+        if(photoReview.isOpen()){
+            int action=ReviewLogic.command(sc,keyCode==KeyEvent.KEYCODE_BACK,photoReview.zoomed());
+            if(e.getRepeatCount()>0&&(action==ReviewLogic.CLOSE||sc==K_ENTER))return true;
+            if(action==ReviewLogic.CLOSE){reviewCloseScan=sc;reviewCloseKey=keyCode;}
+            photoReview.command(action);return true;
         }
-        if (sc == K_PLAY) { if (e.getRepeatCount() == 0) openPhotos(); return true; }
+        if(sc==K_PLAY){if(e.getRepeatCount()==0)openPhotos();return true;}
         if (!settingsReady) {
             if (isMenu(sc) || keyCode == KeyEvent.KEYCODE_BACK) { finish(); return true; }
             showToast("STOP: " + safetyError + " / MENU: Exit", 0); return true;
@@ -1365,7 +1390,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         if (menuOpen) return menuKey(sc);
         if (sc == K_ENTER) { enterDown(e.getRepeatCount()); return true; }
         if (sc == K_AEL || sc == K_C1 || sc == K_DISP) return true;   // not bound on any screen (issue #18)
-        if (overlay == OV_BROWSER && sc != K_PLAY) return browserKey(sc);
+        if (overlay == OV_BROWSER) return browserKey(sc);
         int step = turn(sc);
         if (step != 0) {                                         // any wheel or dial: along the line the highlight is on
             if (focus) stepValue(step); else if (onButtons()) moveAction(step); else if (Params.onRecipeLine(overlay, row)) nextRecipe(step); else moveChip(step);
@@ -1390,7 +1415,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 if (focus) { swallowMenuUp = true; setFocus(false); return true; }
                 if (menuHoldArms(overlay, focus) && menuKeyHold.down(0) == Keys.Hold.ARM) handler.postDelayed(menuHold, HOLD_MS);
                 return true;                                     // exit waits for the release, unless the hold fires first
-            case K_PLAY: return true;
         }
         if (keyCode == KeyEvent.KEYCODE_BACK) { leave(); return true; }
         return super.onKeyDown(keyCode, e);
@@ -1399,10 +1423,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent e) {
         int sc = e.getScanCode();
-        if (photoReview.isOpen()) return true;
-        if (sc == reviewCloseScan && keyCode == reviewCloseKey) {
-            reviewCloseScan = reviewCloseKey = -1; return true;
-        }
+        if(sc==reviewCloseScan&&keyCode==reviewCloseKey){reviewCloseScan=reviewCloseKey=-1;return true;}
+        if(photoReview.isOpen()||sc==K_PLAY)return true;
         if (logging) return logKey(e, false);
         // the hold bookkeeping runs on every release, whatever is on screen, or a lost release would block the next press
         if (isTrash(sc)) { handler.removeCallbacks(trashHold); if (trash.up() == Keys.Hold.SHORT) trashPress(); }
@@ -1420,7 +1442,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 leave(); return true;
             case K_S1: try { camera.cancelAutoFocus(); } catch (Throwable t) {} return true;
             case K_S2: cancelCapture(); return true;
-            case K_UP: case K_DOWN: case K_LEFT: case K_RIGHT: case K_PLAY: case K_DISP:
+            case K_UP: case K_DOWN: case K_LEFT: case K_RIGHT: case K_DISP:
             case K_DELETE: case K_SK2: case K_C1: case K_AEL: return true;
         }
         return super.onKeyUp(keyCode, e);

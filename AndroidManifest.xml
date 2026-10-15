@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.voxivoid.recipelab.rx100m5safe"
-    android:versionCode="10603004"
-    android:versionName="1.6.2-rx100m5.4-preview">
+    android:versionCode="10603007"
+    android:versionName="1.6.2-rx100m5.7-test">
     <uses-sdk android:minSdkVersion="10" android:targetSdkVersion="10" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Sony OptimizedImageView's native display path (grant must be verified on camera). -->
+    <uses-permission android:name="android.permission.ACCESS_SURFACE_FLINGER" />
     <!-- custom recipes: one file each in RECIPES on the memory card -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <application android:label="@string/app_name" android:icon="@drawable/ic_launcher">

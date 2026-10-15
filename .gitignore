@@ -14,7 +14,11 @@ verification/*
 !verification/ui-shim/
 !verification/render-ui.ps1
 !verification/verify-rx4.ps1
+!verification/verify-rx5.ps1
+!verification/verify-rx6.ps1
+!verification/verify-rx7.ps1
 !verification/compile-ui.ps1
+!verification/live-preview/
 build-safe.log
 *-rx3.log
 font-tools.log

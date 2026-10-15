@@ -13,7 +13,7 @@ public class StarView extends View {
 
     public StarView(Context c, AttributeSet a) {
         super(c, a);
-        d = c.getResources().getDisplayMetrics().density;
+        d = UiScale.of(c);
         fill.setColor(SonyUi.MUTED);
     }
 

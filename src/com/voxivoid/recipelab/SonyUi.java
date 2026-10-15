@@ -8,6 +8,17 @@ final class SonyUi {
     static final int BACKGROUND = 0xFF282828, HEADER = 0xFF303030, RULE = 0xFF505050;
     static final int TRACK = 0xFF505050, SELECTED = 0xFF334450;
     static final int ON_ACCENT = 0xFF101820;
+    // Local camera-inspired semantic colours, not claimed Sony/ZEISS official swatches.
+    static final int ENABLED = 0xFF45B8B2, ATTENTION = 0xFFF28A5B;
+    // Logical px in a 320x240 viewport. Roles, not per-screen guesses.
+    static final int TITLE = 14, BODY = 12, SECONDARY = 10, INPUT = 16, NUMBER = 24, KEY_LETTER = 8;
+    static final int ROW_HEIGHT = 28, INFO_ROW_HEIGHT = 24, DIALOG_WIDTH = 256;
+    static final int ICON = 14, ICON_STROKE = 1, KEY_SIZE = 12, KEY_GAP = 4, ITEM_GAP = 8;
+    static final int FOOTER_BOTTOM = 8, FOOTER_GAP = 6, LIST_GAP = 8;
+    static final int LIVE_HEIGHT = 72, LIVE_QUIET_HEIGHT = 54, LIVE_HINT_TOP = 52;
+    static final int PAGE_PAD = 12, HEADER_HEIGHT = 28, BADGE_HEIGHT = 16, BADGE_PAD = 6;
+    static int statusFrame(boolean applied) { return applied ? ENABLED : MUTED; }
+    static int statusText(boolean applied) { return applied ? ON_ACCENT : MUTED; }
 
     static boolean compactPanel(boolean ready, int row, boolean actions, boolean warning) {
         return ready && row == 0 && !actions && !warning;

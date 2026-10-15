@@ -27,6 +27,7 @@ public class MenuView extends View {
     private final Paint glyph = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF box = new RectF();
     private final Legend legend;
+    private final UiChrome chrome;
     private final float d;
     private String title = "";
     private String[] labels = new String[0], details = new String[0], values = new String[0];
@@ -41,14 +42,15 @@ public class MenuView extends View {
         super(c, a);
         d = UiScale.of(c);
         legend = new Legend(d);
+        chrome = new UiChrome(d);
         bg.setColor(SonyUi.BACKGROUND);
-        head.setColor(SonyUi.TEXT); head.setTextSize(14 * d); head.setFakeBoldText(false);
-        item.setTextSize(13 * d); item.setFakeBoldText(false);
-        small.setTextSize(11 * d);
-        key.setTextSize(11 * d); key.setColor(SonyUi.MUTED);
-        value.setTextSize(13 * d); value.setFakeBoldText(false); value.setTextAlign(Paint.Align.CENTER);
+        head.setColor(SonyUi.TEXT); head.setTextSize(SonyUi.TITLE * d); head.setFakeBoldText(false);
+        item.setTextSize(SonyUi.BODY * d); item.setFakeBoldText(false);
+        small.setTextSize(SonyUi.SECONDARY * d);
+        key.setTextSize(SonyUi.SECONDARY * d); key.setColor(SonyUi.MUTED);
+        value.setTextSize(SonyUi.BODY * d); value.setFakeBoldText(false); value.setTextAlign(Paint.Align.CENTER);
         arrow.setStyle(Paint.Style.FILL);
-        glyph.setStyle(Paint.Style.STROKE); glyph.setStrokeWidth(1.5f * d); glyph.setStrokeCap(Paint.Cap.ROUND);
+        glyph.setStyle(Paint.Style.STROKE); glyph.setStrokeWidth(SonyUi.ICON_STROKE * d); glyph.setStrokeCap(Paint.Cap.ROUND);
         rule.setColor(SonyUi.RULE);
         track.setColor(SonyUi.TRACK); thumb.setColor(SonyUi.MUTED);
     }
@@ -84,7 +86,7 @@ public class MenuView extends View {
         requestLayout(); invalidate();
     }
 
-    private float rowHeight() { return page ? 22 * d : 30 * d; }
+    private float rowHeight() { return (page ? SonyUi.INFO_ROW_HEIGHT : SonyUi.ROW_HEIGHT) * d; }
 
     /** the name column of a page: as wide as its widest name */
     private float keyColumn() { float w = 0; for (String l : labels) w = Math.max(w, key.measureText(l)); return w + 12 * d; }
@@ -94,14 +96,12 @@ public class MenuView extends View {
 
     @Override
     protected void onDraw(Canvas c) {
-        float w = getWidth(), h = getHeight(), pad = 12 * d;
+        float w = getWidth(), h = getHeight(), pad = SonyUi.PAGE_PAD * d;
         c.drawRect(0, 0, w, h, bg);
-        row.setColor(SonyUi.HEADER); c.drawRect(0, 0, w, 28 * d, row);
-        c.drawText(CanvasText.fit(head, title, w - 2 * pad), pad, 20 * d, head);
-        float legTop = h - pad - legend.height(legend.lines(w - 2 * pad, hints)) + 2 * d;   // the legend, on as many lines as it needs
-        float top = 28 * d, infoTop = legTop - 24 * d;
+        chrome.header(c,w,title,head);
+        float legTop = chrome.footerTop(w,h,legend,hints);
+        float top = SonyUi.HEADER_HEIGHT * d, infoTop = legTop - 24 * d;
         float bottom = page ? legTop - 6 * d : infoTop - 4 * d;
-        c.drawLine(pad, top, w - pad, top, rule);
 
         float y = top + 8 * d, rh = rowHeight();
         int visible = SonyUi.visibleRows(bottom - y, rh), n = labels.length;
@@ -110,59 +110,61 @@ public class MenuView extends View {
         float sbW = 4 * d, right = w - pad - (scroll ? sbW + 8 * d : 0), listTop = y;
         if (page) {
             float kc = keyColumn();
-            small.setColor(0xDDFFFFFF);
+            small.setColor(SonyUi.TEXT);
             for (int i = first; i < Math.min(n, first + visible); i++, y += rh) {
-                c.drawText(CanvasText.fit(key, labels[i], kc - 8 * d), pad, y + 15 * d, key);
-                c.drawText(CanvasText.fit(small, details[i], right - pad - kc), pad + kc, y + 15 * d, small);
+                c.drawText(CanvasText.fit(key, labels[i], kc - 8 * d), pad, CanvasText.baseline(key,y+rh/2), key);
+                c.drawText(CanvasText.fit(small, details[i], right - pad - kc), pad + kc, CanvasText.baseline(small,y+rh/2), small);
             }
         } else {
+            float valueColumn = valueColumnWidth();
             for (int i = first; i < Math.min(n, first + visible); i++, y += rh) {
                 boolean on = i == selected;
                 if (on) {
-                    r.set(pad - 4 * d, y, right + 4 * d, y + rh - d);
-                    row.setColor(SonyUi.SELECTED); c.drawRect(r, row);
-                    row.setColor(ACCENT); c.drawRect(pad - 4 * d, y, pad - 2 * d, y + rh - d, row);
+                    chrome.selection(c,pad-4*d,y,right+4*d,y+rh-2*d,true);
                 }
-                item.setColor(on ? INK : 0xFFFFFFFF);
+                item.setColor(SonyUi.TEXT);
                 float tx = pad;
                 if (icons != null && i < icons.length) {             // the row's icon, then its text beside it
                     glyph.setColor(on ? SonyUi.TEXT : SonyUi.MUTED);
-                    drawIcon(c, icons[i], pad + 9 * d, y + rh / 2 - 1.5f * d, 7 * d);
-                    tx = pad + 26 * d;
+                    drawIcon(c, icons[i], pad + SonyUi.ICON*d/2, y + rh / 2, SonyUi.ICON*d/2);
+                    tx = pad + (SonyUi.ICON+SonyUi.ITEM_GAP)*d;
                 }
-                float reserved = values[i] == null ? 0 : valueWidth(i) + 20 * d;
-                c.drawText(CanvasText.fit(item, labels[i], right - tx - reserved), tx, y + 20 * d, item);
+                float reserved = values[i] == null ? 0 : valueColumn + 43 * d;
+                c.drawText(CanvasText.fit(item, labels[i], right - tx - reserved), tx, CanvasText.baseline(item,y+rh/2), item);
                 if (values[i] != null) {
                     value.setTypeface(valueFaces[i] != null ? valueFaces[i] : face);
-                    drawValue(c, values[i], right, y + rh / 2, on);
+                    drawValue(c, values[i], right, y + rh / 2, on, valueColumn);
                 }
             }
             if (scroll && visible > 0) scrollbar(c, w - pad - sbW + 4 * d, listTop, visible * rh, sbW, first, visible, n);
             if (selected >= 0 && selected < details.length) {
                 small.setColor(SonyUi.MUTED);
-                c.drawText(CanvasText.fit(small, details[selected], w - 2 * pad), pad, infoTop + 15 * d, small);
+                c.drawText(CanvasText.fit(small, details[selected], w - 2 * pad), pad, CanvasText.baseline(small,infoTop+11*d), small);
             }
         }
-        c.drawLine(pad, legTop - 2 * d, w - pad, legTop - 2 * d, rule);
-        legend.drawWrapped(c, pad, legTop, w - 2 * pad, hints);
+        chrome.footer(c,w,legTop,legend,hints);
     }
 
-    private float valueWidth(int index) {
-        value.setTypeface(valueFaces[index] != null ? valueFaces[index] : face);
-        return Math.max(value.measureText(values[index]), value.measureText("English")) + 23 * d;
+    private float valueColumnWidth() {
+        float width=64*d;
+        for(int i=0;i<values.length;i++)if(values[i]!=null){
+            value.setTypeface(valueFaces[i]!=null?valueFaces[i]:face);
+            width=Math.max(width,value.measureText(values[i]));
+        }
+        return width;
     }
 
     /** "◀ Full ▶" ending at {@code right}, centred on {@code cy}: the arrows say left / right change it */
-    private void drawValue(Canvas c, String text, float right, float cy, boolean on) {
-        float a = 4.5f * d, gap = 7 * d, tw = Math.max(value.measureText(text), value.measureText("English"));   // a steady width as it changes
+    private void drawValue(Canvas c, String text, float right, float cy, boolean on, float tw) {
+        float a = 4.5f * d, gap = 7 * d; // one shared value column, including off-screen rows
         float rx = right - 4 * d, lx = rx - a - gap - tw - gap - a;
-        int col = on ? INK : 0xCCFFFFFF;
+        int col = SonyUi.TEXT;
         arrow.setColor(ACCENT); value.setColor(col);
         if (on) {
             triangle(c, lx, cy, lx + a, cy - a, lx + a, cy + a);
             triangle(c, rx, cy, rx - a, cy - a, rx - a, cy + a);
         }
-        c.drawText(text, lx + a + gap + tw / 2, cy - (value.ascent() + value.descent()) / 2f, value);
+        c.drawText(text, lx + a + gap + tw / 2, CanvasText.baseline(value,cy), value);
     }
 
     /** a menu row's icon, centred on (cx, cy), about 2 * s across, in {@link #glyph} */

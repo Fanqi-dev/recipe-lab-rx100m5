@@ -71,11 +71,6 @@ final class Keys {
     static boolean isTrash(int scan) { return scan == K_DELETE || scan == K_SK2; }
     static boolean isMenu(int scan) { return scan == K_MENU || scan == K_SK1; }
 
-    /** Camera convention: half-press returns from review, without taking a picture in the viewer. */
-    static boolean reviewCloses(int scan, boolean back) {
-        return back || isMenu(scan) || scan == K_PLAY || scan == K_S1;
-    }
-
     // ------------------------------------------------------------ press / hold
     /** how long a key is held before its hold action fires instead of its press */
     static final long HOLD_MS = 600;
@@ -133,7 +128,7 @@ final class Keys {
     // ------------------------------------------------------------ the legend
     /** legend icon ids; {@link Legend} draws them */
     static final int I_NONE = -1, I_WHEEL = 0, I_UPDOWN = 1, I_LEFTRIGHT = 2, I_DIAL = 3, I_ENTER = 4, I_TRASH = 6,
-            I_MENU = 7, I_FN = 9;
+            I_MENU = 7, I_MOVE = 8, I_FN = 9;
 
     /**
      * The legend rows: the main panel's three, the browser's two columns, and the menu's — *_VALUE on a row left / right
@@ -141,7 +136,7 @@ final class Keys {
      */
     static final int H_RECIPE = 0, H_CHIPS = 1, H_EDIT = 2, H_BRANDS = 3, H_RECIPES = 4, H_MENU_TOP = 5, H_MENU_SUB = 6,
             H_PAGE = 7, H_LOGGER = 8, H_MENU_TOP_VALUE = 9, H_MENU_SUB_VALUE = 10, H_RECIPES_CUSTOM = 12,
-            H_NAME = 14, H_ACTIONS = 15, H_PROMPT = 16, H_REVIEW = 17, H_LIVE = 18;
+            H_NAME = 14, H_ACTIONS = 15, H_PROMPT = 16, H_LIVE = 18, H_REVIEW = 19, H_REVIEW_ZOOM = 20;
 
     /** one legend row: per item an icon, an optional shortcut icon drawn before it (I_NONE for none), and a label */
     static final class Hints {
@@ -173,6 +168,10 @@ final class Keys {
     static Hints hints(int mode, Caps caps) {
         int fn = caps.hasFn() ? I_FN : I_NONE;
         switch (mode) {
+            case H_REVIEW: return new Row().add(I_LEFTRIGHT,Lang.t("action_photos"))
+                    .add(I_ENTER,Lang.t("action_zoom")).add(I_MENU,Lang.t("action_back")).done();
+            case H_REVIEW_ZOOM: return new Row().add(I_MOVE,Lang.t("action_pan")).add(I_WHEEL,Lang.t("action_zoom"))
+                    .add(I_ENTER,Lang.t("action_fit")).add(I_MENU,Lang.t("action_back")).done();
             case H_LIVE: {
                 Row r = new Row().add(I_WHEEL, Lang.t("action_recipes")).add(I_UPDOWN, Lang.t("action_parameters"))
                         .add(I_ENTER, Lang.t("action_pick"));
@@ -192,7 +191,6 @@ final class Keys {
             }
             case H_EDIT: return new Row().add(I_LEFTRIGHT, Lang.t("action_change")).add(I_ENTER, Lang.t("action_done")).add(I_MENU, Lang.t("action_back")).done();
             case H_PROMPT: return new Row().add(I_ENTER, Lang.t("action_select")).add(I_MENU, Lang.t("action_cancel")).done();
-            case H_REVIEW: return new Row().add(I_LEFTRIGHT, Lang.t("menu_review")).add(I_MENU, Lang.t("action_back")).done();
             case H_ACTIONS: return new Row().add(I_LEFTRIGHT, Lang.t("action_move")).add(I_ENTER, Lang.t("action_select")).add(I_MENU, Lang.t("action_exit")).done();
             case H_BRANDS: return new Row().add(I_ENTER, Lang.t("action_recipes")).add(I_MENU, fn, Lang.t("action_close")).done();
             case H_RECIPES: return new Row().add(I_ENTER, Lang.t("action_pick")).add(I_ENTER, Lang.t("action_favourite_hold")).add(I_MENU, fn, Lang.t("action_close")).done();
